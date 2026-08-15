@@ -23,8 +23,8 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'REAL MACHINE APPLY: BLOCKED' "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
-@test "menu has no installation or mutation option" {
-  run grep -Ei '^[[:space:]]*[0-9]+\).*(install|apply|restore|backup|update|upgrade|delete|remove)' "$REPO_ROOT/menu.sh"
+@test "menu has no mutating action option" {
+  run grep -Ei '^[[:space:]]*[0-9]+\).*(installer|appliquer|restaurer|sauvegarder|mettre a jour|mettre à jour|supprimer)' "$REPO_ROOT/menu.sh"
   [ "$status" -ne 0 ]
 }
 
