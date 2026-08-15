@@ -1,4 +1,7 @@
 <!-- Declarative libvirt network template. Not applied automatically. -->
+<!-- DNS upstream policy (9.9.9.9 / 1.1.1.1) and physical-LAN isolation are
+     enforced by the future network module after preflight; they are not
+     represented here as unsafe host-wide firewall assumptions. -->
 <network>
   <name>devops-nat</name>
   <forward mode='nat'/>
