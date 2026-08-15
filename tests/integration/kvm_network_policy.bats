@@ -38,6 +38,13 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "route fixtures cover overlap and no-overlap cases" {
+  run grep -F '192.168.50.0/24' "$REPO_ROOT/tests/fixtures/network/routes-conflict.txt"
+  [ "$status" -eq 0 ]
+  run grep -F '10.0.0.0/24' "$REPO_ROOT/tests/fixtures/network/routes-no-conflict.txt"
+  [ "$status" -eq 0 ]
+}
+
 @test "existing host firewall must be preserved" {
   run grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
