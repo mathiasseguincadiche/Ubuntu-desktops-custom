@@ -63,3 +63,8 @@ setup() {
   [ "$status" -eq 8 ]
   [[ "$output" == *"BLOCKED"* ]]
 }
+
+@test "no global firewall flush exists in shell modules" {
+  run bash -c "if grep -R -n -E '(^|[[:space:]])(nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F)([[:space:]]|$)' --include='*.sh' '$REPO_ROOT'; then exit 1; else exit 0; fi"
+  [ "$status" -eq 0 ]
+}
