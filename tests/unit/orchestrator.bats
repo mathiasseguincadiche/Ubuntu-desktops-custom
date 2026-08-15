@@ -100,7 +100,8 @@ teardown() {
     safe_mkdir "$LOG_ROOT"; safe_mkdir "$STATE_ROOT"; safe_mkdir "$REPORT_ROOT"; log_init; state_init; orchestrator_reset
     orchestrator_register m1 HOST
     orchestrator_run_all >/dev/null
-    grep -F $'m1\tHOST\tSUCCESS' "$REPORT_ROOT/test-orchestrator.txt"
+    test -s "$REPORT_ROOT/test-orchestrator.txt"
+    grep -Eq "^m1[[:space:]]+HOST[[:space:]]+SUCCESS$" "$REPORT_ROOT/test-orchestrator.txt"
   '
   [ "$status" -eq 0 ]
 }
