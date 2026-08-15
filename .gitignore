@@ -1,0 +1,13 @@
+logs/*
+!logs/.gitkeep
+reports/*
+!reports/.gitkeep
+state/*
+!state/.gitkeep
+.env
+.env.*
+*.secret
+*.key
+*.pem
+*.qcow2
+*.iso

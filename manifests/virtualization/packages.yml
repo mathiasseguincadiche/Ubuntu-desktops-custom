@@ -1,0 +1,12 @@
+schema: 1
+scope: KVM
+strategy: ubuntu-26.04-hwe-preferred
+components:
+  - qemu
+  - libvirt
+  - edk2
+  - seabios
+  - swtpm
+  - virt-install
+  - virt-manager
+  - osinfo-db

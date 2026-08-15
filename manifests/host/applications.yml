@@ -1,0 +1,17 @@
+schema: 1
+scope: HOST
+applications:
+  - vscode
+  - brave
+  - bitwarden
+  - ptyxis
+  - filezilla
+  - remmina
+  - obs-studio
+  - vlc
+  - marktext
+  - drawio
+  - pdf-arranger
+  - xournalpp
+  - libreoffice
+  - onlyoffice

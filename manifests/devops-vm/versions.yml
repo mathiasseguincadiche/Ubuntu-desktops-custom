@@ -1,0 +1,34 @@
+schema: 1
+scope: VM_DEVOPS
+policy: resolve-latest-supported-stable-at-pretest
+record_resolved_versions: true
+sources:
+  ubuntu:
+    authority: Canonical
+    channel: 26.04-lts
+  docker:
+    authority: Docker
+    channel: stable
+  kubernetes:
+    authority: Kubernetes
+    channel: stable-supported
+  helm:
+    authority: Helm
+    channel: stable
+  terraform:
+    authority: HashiCorp
+    channel: stable
+  ansible:
+    authority: Ansible
+    channel: stable-supported
+  aws_cli:
+    authority: AWS
+    channel: v2-stable
+  azure_cli:
+    authority: Microsoft
+    channel: stable
+  devsecops:
+    authority: official-upstream-per-tool
+verification:
+  checksum_or_signature_required: true
+  fail_closed_on_unverified_source: true

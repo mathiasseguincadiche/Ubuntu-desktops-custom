@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# Public library constants are consumed by other sourced files.
+# shellcheck disable=SC2034
+readonly SCOPE_HOST='HOST'
+readonly SCOPE_KVM='KVM'
+readonly SCOPE_VM_DEVOPS='VM_DEVOPS'
+readonly SCOPE_BACKUP='BACKUP'
+
+readonly STATE_PENDING='PENDING'
+readonly STATE_RUNNING='RUNNING'
+readonly STATE_SKIPPED='SKIPPED'
+readonly STATE_CHANGED='CHANGED'
+readonly STATE_UNCHANGED='UNCHANGED'
+readonly STATE_WARNING='WARNING'
+readonly STATE_FAILED='FAILED'
+readonly STATE_BLOCKED='BLOCKED'
+readonly STATE_REBOOT_REQUIRED='REBOOT_REQUIRED'
+readonly STATE_SUCCESS='SUCCESS'
+
+readonly EXIT_SUCCESS=0
+readonly EXIT_GENERIC_ERROR=1
+readonly EXIT_INVALID_ARGUMENT=2
+readonly EXIT_PRECHECK_FAILED=3
+readonly EXIT_DEPENDENCY_FAILED=4
+readonly EXIT_APPLY_FAILED=5
+readonly EXIT_POSTCHECK_FAILED=6
+readonly EXIT_ROLLBACK_FAILED=7
+readonly EXIT_SECURITY_BLOCK=8
+readonly EXIT_REBOOT_REQUIRED=9
+readonly EXIT_MANUAL_ACTION_REQUIRED=10
+
+readonly EFFECT_READONLY='readonly'
+readonly EFFECT_MUTATING='mutating'

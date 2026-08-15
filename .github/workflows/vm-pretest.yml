@@ -1,0 +1,55 @@
+name: vm-pretest
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [architecture/skeleton-v1]
+    paths:
+      - '.github/workflows/vm-pretest.yml'
+      - '.github/scripts/vm-pretest.sh'
+      - 'scripts/devops-vm/**'
+      - 'modules/devops-vm/**'
+      - 'config/devops-vm.conf'
+      - 'manifests/devops-vm-tools.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/vm-pretest.yml'
+      - '.github/scripts/vm-pretest.sh'
+      - 'scripts/devops-vm/**'
+      - 'modules/devops-vm/**'
+      - 'config/devops-vm.conf'
+      - 'manifests/devops-vm-tools.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vm-pretest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ubuntu-2604-real-vm:
+    name: Ubuntu 26.04 real VM + DevOps stack
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Run real Ubuntu 26.04 VM pre-test
+        shell: bash
+        run: |
+          chmod +x .github/scripts/vm-pretest.sh
+          .github/scripts/vm-pretest.sh
+
+      - name: Upload VM pre-test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-26.04-vm-pretest-${{ github.run_id }}
+          path: |
+            .vm-pretest/report.txt
+            .vm-pretest/console.log
+          if-no-files-found: warn
+          retention-days: 14

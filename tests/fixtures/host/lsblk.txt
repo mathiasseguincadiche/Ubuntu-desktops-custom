@@ -1,0 +1,5 @@
+NAME        FSTYPE SIZE MOUNTPOINTS
+nvme0n1            1.8T
+├─nvme0n1p1 vfat   1G   /boot/efi
+└─nvme0n1p2 ext4   1.8T /
+nvme1n1     ext4   1.8T /data

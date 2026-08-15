@@ -1,0 +1,11 @@
+schema: 1
+scope: HOST
+components:
+  - steam
+  - proton
+  - gamescope
+  - gamemode
+  - mangohud
+  - vulkan-amd64
+  - vulkan-i386
+  - steam-input

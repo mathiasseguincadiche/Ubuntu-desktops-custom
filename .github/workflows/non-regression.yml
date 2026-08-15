@@ -1,0 +1,56 @@
+name: non-regression
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  architecture-guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Real-machine gate must remain closed
+        run: |
+          grep -F 'REAL_MACHINE_APPROVED=false' config/virtualization.conf
+          if grep -R -n -E '^REAL_MACHINE_APPROVED=(true|1|yes)$' config; then
+            echo 'Real-machine gate opened unexpectedly.' >&2
+            exit 1
+          fi
+      - name: KVM custom NAT contract
+        run: |
+          grep -F 'KVM_NETWORK_CIDR=192.168.50.0/24' config/virtualization.conf
+          grep -F 'KVM_NETWORK_AUTOSTART=true' config/virtualization.conf
+          grep -F 'KVM_GATEWAY=192.168.50.254' config/virtualization.conf
+          grep -F 'KVM_HOST_ADDRESS=192.168.50.254' config/virtualization.conf
+          grep -F 'KVM_DHCP_START=192.168.50.100' config/virtualization.conf
+          grep -F 'KVM_DHCP_END=192.168.50.200' config/virtualization.conf
+          grep -F 'KVM_DNS_1=9.9.9.9' config/virtualization.conf
+          grep -F 'KVM_DNS_2=1.1.1.1' config/virtualization.conf
+          grep -F 'KVM_DNS_ENFORCEMENT=libvirt-dns-forwarders' config/virtualization.conf
+          grep -F 'KVM_BLOCK_PHYSICAL_LAN=true' config/virtualization.conf
+          grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' config/virtualization.conf
+          grep -F 'KVM_FIREWALL_ENFORCEMENT=project-nftables-guard' config/virtualization.conf
+          grep -F 'KVM_NFT_TABLE=ubuntu_desktops_custom_kvm' config/virtualization.conf
+          grep -F 'KVM_FAIL_CLOSED=true' config/virtualization.conf
+          grep -F 'KVM_NETWORK_READY_REQUIRED=true' config/virtualization.conf
+          grep -F 'VM_DEVOPS_NETWORK=devops-nat' config/devops-vm.conf
+          grep -F "<forwarder addr='9.9.9.9'/>" virtualization/xml/networks/devops-nat.xml
+          grep -F "<forwarder addr='1.1.1.1'/>" virtualization/xml/networks/devops-nat.xml
+      - name: KVM mutations must use secure runner
+        run: |
+          grep -F 'run_mutating KVM' modules/virtualization/24_networks.sh
+          if grep -E '^[[:space:]]*(sudo[[:space:]]+)?virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-destroy|net-undefine)' modules/virtualization/24_networks.sh; then
+            echo 'Raw libvirt network mutation bypass detected.' >&2
+            exit 1
+          fi
+      - name: Project firewall ownership boundary
+        run: |
+          grep -F "TABLE_NAME='ubuntu_desktops_custom_kvm'" scripts/kvm/kvm_network_guard.sh
+          if grep -R -n -E 'nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F' --include='*.sh' .; then
+            echo 'Forbidden global firewall flush detected.' >&2
+            exit 1
+          fi

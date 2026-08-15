@@ -1,0 +1,17 @@
+<!-- Managed libvirt network template. Applied only through the gated KVM module. -->
+<!-- Stable VM DHCP <host> reservations are injected/generated later from
+     deterministic VM identities after conflict validation. -->
+<network>
+  <name>devops-nat</name>
+  <forward mode='nat'/>
+  <bridge name='virbr50' stp='on' delay='0'/>
+  <dns>
+    <forwarder addr='9.9.9.9'/>
+    <forwarder addr='1.1.1.1'/>
+  </dns>
+  <ip address='192.168.50.254' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.50.100' end='192.168.50.200'/>
+    </dhcp>
+  </ip>
+</network>

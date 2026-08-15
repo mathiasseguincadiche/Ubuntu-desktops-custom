@@ -1,0 +1,41 @@
+networks:
+  devops-nat:
+    scope: KVM
+    mode: nat
+    autostart: true
+    bridge: virbr50
+    cidr: 192.168.50.0/24
+    gateway: 192.168.50.254
+    host_participation:
+      enabled: true
+      address: 192.168.50.254
+    netmask: 255.255.255.0
+    dhcp:
+      start: 192.168.50.100
+      end: 192.168.50.200
+      reservations:
+        strategy: deterministic-mac
+        address_source: conflict-checked-address-within-dhcp-pool
+    dns:
+      required_upstreams:
+        - 9.9.9.9
+        - 1.1.1.1
+      enforcement: libvirt-dns-forwarders
+    policy:
+      fail_closed: true
+      vm_to_internet: allow
+      vm_to_vm: allow
+      host_to_vm: allow
+      vm_to_host: allow
+      vm_to_physical_lan: block
+      physical_lan_to_vm: block
+      internet_to_vm: block
+      inbound_port_forwarding: disabled
+      physical_lan_detection: dynamic-host-routes
+      route_overlap_action: block-and-require-manual-review
+      preserve_existing_host_firewall: true
+      firewall_enforcement: project-nftables-guard
+      firewall_table: ubuntu_desktops_custom_kvm
+    non_dhcp_ranges:
+      low: 192.168.50.1-99
+      high: 192.168.50.201-253
