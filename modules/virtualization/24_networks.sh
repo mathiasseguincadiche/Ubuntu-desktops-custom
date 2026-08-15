@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+kvm_network_validate_existing() {
+  local uri="${LIBVIRT_URI:-qemu:///system}"
+  local network="${KVM_NETWORK_NAME:-devops-nat}"
+  local current
+
+  sudo virsh --connect "$uri" net-info "$network" >/dev/null 2>&1 || return 0
+  current="$(sudo virsh --connect "$uri" net-dumpxml "$network")" || return "$EXIT_PRECHECK_FAILED"
+
+  grep -Fq "<forward mode='nat'" <<< "$current" || return "$EXIT_MANUAL_ACTION_REQUIRED"
+  grep -Fq "<bridge name='${KVM_BRIDGE_NAME:-virbr50}'" <<< "$current" || return "$EXIT_MANUAL_ACTION_REQUIRED"
+  grep -Fq "address='${KVM_GATEWAY:-192.168.50.254}'" <<< "$current" || return "$EXIT_MANUAL_ACTION_REQUIRED"
+  grep -Fq "start='${KVM_DHCP_START:-192.168.50.100}' end='${KVM_DHCP_END:-192.168.50.200}'" <<< "$current" || return "$EXIT_MANUAL_ACTION_REQUIRED"
+  grep -Fq "<forwarder addr='${KVM_DNS_1:-9.9.9.9}'" <<< "$current" || return "$EXIT_MANUAL_ACTION_REQUIRED"
+  grep -Fq "<forwarder addr='${KVM_DNS_2:-1.1.1.1}'" <<< "$current" || return "$EXIT_MANUAL_ACTION_REQUIRED"
+}
+
 kvm_network_precheck() {
   assert_scope KVM
   command -v ip >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
@@ -26,11 +42,17 @@ for line in out.splitlines():
         print(f'KVM subnet overlap detected with {network}', file=sys.stderr)
         raise SystemExit(10)
 PY
+
+  if ! is_true "${DRY_RUN:-true}"; then
+    command -v virsh >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
+    kvm_network_validate_existing || return "$?"
+  fi
 }
 
 kvm_network_plan() {
   cat <<'EOF'
 KVM CUSTOM NAT APPLY PLAN:
+- validate any pre-existing devops-nat definition before the first mutation
 - install nftables dependency without replacing/flushing the HOST firewall
 - install a project-owned nftables guard helper and systemd service
 - the guard dynamically discovers directly-connected HOST IPv4 networks and blocks VM<->those networks only
@@ -53,6 +75,11 @@ kvm_network_apply() {
   local unit_src="$REPO_ROOT/virtualization/systemd/ubuntu-desktops-custom-kvm-guard.service"
   local unit_dst='/etc/systemd/system/ubuntu-desktops-custom-kvm-guard.service'
 
+  # Re-check immediately before mutation to close the gap between PRECHECK and APPLY.
+  if ! is_true "${DRY_RUN:-true}"; then
+    kvm_network_validate_existing || return "$?"
+  fi
+
   run_mutating KVM sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install nftables python3 iproute2 || return "$EXIT_APPLY_FAILED"
   run_mutating KVM sudo install -d -m 0755 /usr/local/libexec/ubuntu-desktops-custom || return "$EXIT_APPLY_FAILED"
   run_mutating KVM sudo install -m 0755 "$helper_src" "$helper_dst" || return "$EXIT_APPLY_FAILED"
@@ -67,12 +94,7 @@ kvm_network_apply() {
     return 0
   fi
 
-  if sudo virsh --connect "$uri" net-info "$network" >/dev/null 2>&1; then
-    local current
-    current="$(sudo virsh --connect "$uri" net-dumpxml "$network")" || return "$EXIT_APPLY_FAILED"
-    grep -Fq "<bridge name='${KVM_BRIDGE_NAME:-virbr50}'" <<< "$current" || return "$EXIT_MANUAL_ACTION_REQUIRED"
-    grep -Fq "address='${KVM_GATEWAY:-192.168.50.254}'" <<< "$current" || return "$EXIT_MANUAL_ACTION_REQUIRED"
-  else
+  if ! sudo virsh --connect "$uri" net-info "$network" >/dev/null 2>&1; then
     run_mutating KVM sudo virsh --connect "$uri" net-define "$xml" || return "$EXIT_APPLY_FAILED"
   fi
 
