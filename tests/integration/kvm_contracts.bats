@@ -14,9 +14,10 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 }
 
 @test "implemented KVM mutations use secure runner" {
-  grep -F 'run_mutating KVM' "$REPO_ROOT/modules/virtualization/21_stack_qemu_libvirt.sh"
-  grep -F 'run_mutating KVM' "$REPO_ROOT/modules/virtualization/22_firmware_uefi_tpm.sh"
-  grep -F 'run_mutating KVM' "$REPO_ROOT/modules/virtualization/23_storage_pools.sh"
+  local file
+  for file in 21_stack_qemu_libvirt.sh 22_firmware_uefi_tpm.sh 23_storage_pools.sh 24_networks.sh; do
+    grep -F 'run_mutating KVM' "$REPO_ROOT/modules/virtualization/$file"
+  done
 }
 
 @test "KVM modules contain no raw package or libvirt mutation bypass" {
@@ -24,9 +25,10 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   [ "$status" -ne 0 ]
 }
 
-@test "custom network real mutation remains separately blocked" {
-  grep -F 'BLOCKED: KVM network mutation remains disabled' "$REPO_ROOT/modules/virtualization/24_networks.sh"
-  grep -F 'return "$EXIT_SECURITY_BLOCK"' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+@test "custom network implementation preserves project ownership boundaries" {
+  grep -F 'KVM_FIREWALL_ENFORCEMENT=project-nftables-guard' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_DNS_ENFORCEMENT=libvirt-dns-forwarders' "$REPO_ROOT/config/virtualization.conf"
+  grep -F "TABLE_NAME='ubuntu_desktops_custom_kvm'" "$REPO_ROOT/scripts/kvm/kvm_network_guard.sh"
 }
 
 @test "OS catalog pins official Ubuntu 26.04 artifacts" {
