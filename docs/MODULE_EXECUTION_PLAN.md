@@ -1,6 +1,6 @@
 # Plan d'execution des modules
 
-Le catalogue `config/module-plan.conf` fige l'ordre logique sans sourcer ni executer les scripts de modules.
+Le catalogue `manifests/module-plan.conf` fige l'ordre logique sans sourcer ni executer les scripts de modules. Il est volontairement hors de `config/`, reserve aux variables runtime `KEY=VALUE` validees par le chargeur securise.
 
 Ordre actuel :
 

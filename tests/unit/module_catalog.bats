@@ -6,7 +6,7 @@
     source lib/scope.sh
     source lib/module_catalog.sh
     REPO_ROOT="$PWD"
-    module_catalog_load config/module-plan.conf
+    module_catalog_load manifests/module-plan.conf
     module_catalog_validate
     printf "%s\n" "${CATALOG_ORDER[@]}"
   '
@@ -21,7 +21,7 @@
     source lib/scope.sh
     source lib/module_catalog.sh
     REPO_ROOT="$PWD"
-    module_catalog_load config/module-plan.conf
+    module_catalog_load manifests/module-plan.conf
     printf "%s|%s|%s\n" "${CATALOG_DEPS[kvm.network]}" "${CATALOG_DEPS[vm.preflight]}" "${CATALOG_DEPS[backup.preflight]}"
   '
   [ "$status" -eq 0 ]
@@ -46,7 +46,7 @@
     source lib/scope.sh
     source lib/module_catalog.sh
     REPO_ROOT="$PWD"
-    module_catalog_load config/module-plan.conf
+    module_catalog_load manifests/module-plan.conf
     module_catalog_validate
     module_catalog_print_plan | grep -F "kvm.network"
   '
