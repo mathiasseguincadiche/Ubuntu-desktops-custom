@@ -18,7 +18,7 @@ Toutes les VM gérées par le projet utilisent par défaut le réseau libvirt `d
 - autostart : activé
 - passerelle/interface HOST : `192.168.50.254`
 - DHCP : `192.168.50.100-200`
-- DNS : `9.9.9.9`, `1.1.1.1`
+- DNS requis : `9.9.9.9`, `1.1.1.1` ; mécanisme d'enforcement à valider en pré-test
 - HOST ↔ VM : autorisé
 - VM ↔ VM : autorisé
 - VM → Internet : autorisé par NAT
