@@ -7,11 +7,23 @@ vm_remote_identity_file() {
 vm_remote_prepare() {
   local file
   file="$(vm_remote_identity_file)"
-  [[ -s "$file" ]] || return "$EXIT_PRECHECK_FAILED"
+  VM_REMOTE_KNOWN_HOSTS="${STATE_ROOT}/vm-known-hosts"
 
+  if is_true "${DRY_RUN:-true}"; then
+    if [[ -s "$file" ]]; then
+      VM_REMOTE_USER="$(awk -F= '$1=="VM_ADMIN_USER"{print $2}' "$file")"
+      VM_REMOTE_IP="$(awk -F= '$1=="VM_DEVOPS_RESOLVED_IP"{print $2}' "$file")"
+    fi
+    VM_REMOTE_USER="${VM_REMOTE_USER:-devops}"
+    VM_REMOTE_IP="${VM_REMOTE_IP:-192.168.50.150}"
+    VM_ADMIN_SSH_PRIVATE_KEY_FILE="${VM_ADMIN_SSH_PRIVATE_KEY_FILE:-/dev/null}"
+    safe_mkdir "$(dirname "$VM_REMOTE_KNOWN_HOSTS")"
+    return 0
+  fi
+
+  [[ -s "$file" ]] || return "$EXIT_PRECHECK_FAILED"
   VM_REMOTE_USER="$(awk -F= '$1=="VM_ADMIN_USER"{print $2}' "$file")"
   VM_REMOTE_IP="$(awk -F= '$1=="VM_DEVOPS_RESOLVED_IP"{print $2}' "$file")"
-  VM_REMOTE_KNOWN_HOSTS="${STATE_ROOT}/vm-known-hosts"
 
   [[ -n "$VM_REMOTE_USER" && -n "$VM_REMOTE_IP" ]] || return "$EXIT_PRECHECK_FAILED"
   [[ -n "${VM_ADMIN_SSH_PRIVATE_KEY_FILE:-}" && -r "$VM_ADMIN_SSH_PRIVATE_KEY_FILE" ]] || return "$EXIT_MANUAL_ACTION_REQUIRED"
