@@ -48,7 +48,7 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 
 @test "Kubernetes binaries require published checksums" {
   grep -F 'kubectl.sha256' "$REPO_ROOT/scripts/devops-vm/install_kubernetes.sh"
-  grep -F 'kind-linux-amd64.sha256' "$REPO_ROOT/scripts/devops-vm/install_kubernetes.sh"
+  grep -F 'kind-linux-amd64.sha256sum' "$REPO_ROOT/scripts/devops-vm/install_kubernetes.sh"
   grep -F 'sha256sum --check --status' "$REPO_ROOT/scripts/devops-vm/install_kubernetes.sh"
 }
 
