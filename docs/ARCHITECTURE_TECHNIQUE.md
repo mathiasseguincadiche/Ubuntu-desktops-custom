@@ -24,7 +24,11 @@ Toutes les VM gérées par le projet utilisent par défaut le réseau libvirt `d
 - LAN/Internet → VM : bloqué par défaut
 - aucun port-forward entrant par défaut
 
-Le NAT seul n'est pas une preuve d'isolation du LAN. L'implémentation devra appliquer puis tester une politique de filtrage dédiée sans écraser le firewall existant.
+Le NAT seul n'est pas une preuve d'isolation du LAN. L'implémentation devra appliquer puis tester une politique de filtrage dédiée sans écraser le firewall existant. Le PRECHECK inventorie dynamiquement les routes du HOST ; tout chevauchement ou ambiguïté avec `192.168.50.0/24` bloque l'application et demande une revue manuelle.
+
+## VM DevOps
+
+`ubuntu-devops` est attachée explicitement à `devops-nat`. Son adresse stable sera fournie par une réservation DHCP libvirt liée à une identité MAC déterministe ; aucune adresse n'est inventée tant que l'implémentation n'a pas validé les conflits.
 
 ## Gate
 
