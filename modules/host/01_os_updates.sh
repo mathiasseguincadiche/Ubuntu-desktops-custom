@@ -12,7 +12,7 @@ host_os_updates_plan() {
   cat <<'EOF'
 HOST OS UPDATE PLAN:
 - refresh Ubuntu package metadata
-- apply supported Ubuntu 26.04 updates with apt-get full-upgrade
+- apply supported Ubuntu 26.04 updates with apt-get dist-upgrade
 - preserve the current LTS release/channel configuration
 - never invoke do-release-upgrade implicitly
 - detect reboot-required state after package convergence
@@ -22,7 +22,7 @@ EOF
 
 host_os_updates_apply() {
   run_mutating HOST sudo apt-get update || return "$EXIT_APPLY_FAILED"
-  run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y full-upgrade || return "$EXIT_APPLY_FAILED"
+  run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade || return "$EXIT_APPLY_FAILED"
 }
 
 host_os_updates_postcheck() {
