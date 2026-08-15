@@ -125,6 +125,8 @@ setup() {
 }
 
 @test "KVM network readiness has an explicit verdict" {
+  run grep -F 'KVM_NETWORK_READY_REQUIRED=true' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
   run grep -F 'KVM NETWORK READY' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
   [ "$status" -eq 0 ]
 }
