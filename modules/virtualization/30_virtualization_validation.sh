@@ -23,5 +23,8 @@ KVM VALIDATION CONTRACT:
 - existing HOST firewall remains healthy
 - isolation rules are idempotent (no duplicate project rules)
 - reboot persistence validated during final pre-test
+
+SUCCESS VERDICT (only when every required check passes):
+KVM NETWORK READY
 EOF
 }
