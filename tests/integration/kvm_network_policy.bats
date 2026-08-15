@@ -124,6 +124,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "KVM network readiness has an explicit verdict" {
+  run grep -F 'KVM NETWORK READY' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
+  [ "$status" -eq 0 ]
+}
+
 @test "real machine gate remains closed" {
   run grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
