@@ -46,7 +46,7 @@ expected="$(awk -v n="$IMAGE_NAME" '$2==n || $2=="*"n {print $1; exit}' SHA256SU
 printf '%s  %s\n' "$expected" "$IMAGE_NAME" | sha256sum -c -
 report 'PASS: Canonical signature + SHA256 image verification'
 
-report '[3/10] Prepare cloud-init and VM disk'
+report '[3/10] Prepare minimal cloud-init and VM disk'
 ssh-keygen -q -t ed25519 -N '' -f "$SSH_KEY"
 PUBKEY="$(cat "$SSH_KEY.pub")"
 cat >user-data <<EOF
@@ -61,15 +61,6 @@ users:
       - $PUBKEY
 ssh_pwauth: false
 disable_root: true
-package_update: true
-packages:
-  - ca-certificates
-  - curl
-  - dnsutils
-  - git
-  - qemu-guest-agent
-runcmd:
-  - [ systemctl, enable, --now, qemu-guest-agent ]
 EOF
 cat >meta-data <<'EOF'
 instance-id: ubuntu-desktops-custom-ci
@@ -124,7 +115,7 @@ if ! start_vm "$ACCEL" "$QEMU_CPU"; then
 fi
 report "active_acceleration=$ACCEL"
 
-report '[5/10] Wait for SSH and cloud-init completion'
+report '[5/10] Wait for SSH and minimal cloud-init completion'
 ssh_ready=0
 for _ in $(seq 1 120); do
   if ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" true >/dev/null 2>&1; then
@@ -139,7 +130,20 @@ if (( ssh_ready == 0 )); then
   exit 22
 fi
 ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'sudo cloud-init status --wait --long'
-report 'PASS: SSH + cloud-init'
+
+report 'Install guest bootstrap packages with explicit retry outside cloud-init'
+ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'set -Eeuo pipefail
+  for attempt in 1 2 3 4 5; do
+    if sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl bind9-dnsutils git qemu-guest-agent; then
+      sudo systemctl enable --now qemu-guest-agent || true
+      exit 0
+    fi
+    echo "guest apt bootstrap attempt $attempt failed" >&2
+    sleep $((attempt * 5))
+  done
+  exit 1
+'
+report 'PASS: SSH + cloud-init + guest package bootstrap'
 
 report '[6/10] Validate Ubuntu guest, Internet and DNS contract'
 ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" \
@@ -160,7 +164,7 @@ for installer in install_iac.sh install_docker.sh install_kubernetes.sh install_
   ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" "sudo /tmp/ubuntu-desktops-custom-devops-vm/$installer"
 done
 
-report '[9/10] Runtime smoke tests and idempotence-sensitive rechecks'
+report '[9/10] Runtime smoke tests'
 ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'set -Eeuo pipefail
   git --version
   terraform version
