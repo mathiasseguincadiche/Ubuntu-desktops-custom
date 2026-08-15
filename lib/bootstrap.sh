@@ -33,6 +33,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/module_catalog.sh"
   # shellcheck source=lib/module_adapter.sh
   source "$REPO_ROOT/lib/module_adapter.sh"
+  # shellcheck source=lib/pretest_audit.sh
+  source "$REPO_ROOT/lib/pretest_audit.sh"
 
   DRY_RUN="${DRY_RUN:-true}"
   ORCH_RESUME="${ORCH_RESUME:-false}"
