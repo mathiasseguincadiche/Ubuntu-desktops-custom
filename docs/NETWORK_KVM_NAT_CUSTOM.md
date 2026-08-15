@@ -30,6 +30,10 @@ Le NAT libvirt seul n'est pas considéré comme une preuve suffisante d'isolatio
 
 La politique d'isolation ne devra **pas** coder en dur le sous-réseau du LAN physique. Au PRECHECK, le moteur devra inventorier les routes et interfaces réellement actives de l'hôte, identifier les réseaux directement connectés hors `devops-nat`, détecter tout chevauchement avec `192.168.50.0/24`, puis construire une politique de filtrage minimale. Une ambiguïté ou un chevauchement doit produire `BLOCKED / MANUAL_ACTION_REQUIRED`, jamais une règle approximative.
 
+## DNS
+
+`9.9.9.9` et `1.1.1.1` constituent le contrat DNS voulu pour les VM. Leur mécanisme exact d'application sera choisi pendant l'implémentation après validation du comportement libvirt/dnsmasq sur Ubuntu 26.04. Le XML de squelette ne prétend donc pas, à lui seul, garantir ces upstreams.
+
 ## Adressage
 
 - `.1-.99` : hors DHCP ; `.2-.99` réservables aux services/VM à adresse stable.
@@ -45,7 +49,7 @@ Le module réseau ne pourra être déclaré `SUCCESS` qu'après validation de :
 
 1. interface `virbr50` et adresse `192.168.50.254/24` sur le HOST ;
 2. DHCP dans la plage `.100-.200` ;
-3. résolution DNS via les DNS prévus ;
+3. résolution DNS conformément au contrat DNS ;
 4. HOST → VM ;
 5. VM → HOST ;
 6. VM → VM ;
