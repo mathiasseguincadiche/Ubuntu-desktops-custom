@@ -93,6 +93,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "network plan retains DHCP single authority" {
+  run grep -F 'stable VM identities use conflict-checked DHCP reservations' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  [ "$status" -eq 0 ]
+}
+
 @test "network contract requires dynamic route overlap detection" {
   run grep -F 'reject overlap between 192.168.50.0/24' "$REPO_ROOT/modules/virtualization/24_networks.sh"
   [ "$status" -eq 0 ]
