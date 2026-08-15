@@ -62,3 +62,16 @@ EOF
   [ "$status" -eq 5 ]
   [[ "$output" == *'SECURITY_BLOCK'* ]]
 }
+
+@test "VM provisioning defines targeted rollback for partial resources" {
+  grep -F 'vm_provision_rollback()' "$REPO_ROOT/modules/devops-vm/42a_provision_vm.sh"
+  grep -F 'net-update "$network" delete ip-dhcp-host' "$REPO_ROOT/modules/devops-vm/42a_provision_vm.sh"
+  grep -F 'undefine "$name" --nvram' "$REPO_ROOT/modules/devops-vm/42a_provision_vm.sh"
+  grep -F 'sudo rm -f -- "$disk"' "$REPO_ROOT/modules/devops-vm/42a_provision_vm.sh"
+}
+
+@test "virt-install failure invokes rollback before returning apply failure" {
+  grep -F 'vm_provision_rollback "$uri" "$network" "$name" "$disk" "$mac" "$ip" "$reservation_added"' \
+    "$REPO_ROOT/modules/devops-vm/42a_provision_vm.sh"
+  grep -F 'return "$EXIT_ROLLBACK_FAILED"' "$REPO_ROOT/modules/devops-vm/42a_provision_vm.sh"
+}
