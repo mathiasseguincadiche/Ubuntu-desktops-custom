@@ -35,12 +35,16 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F "pretest_record WARN 'RUNTIME INPUTS'" "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
-@test "menu has no mutating action option" {
-  run grep -Ei '^[[:space:]]*[0-9]+\).*(installer|appliquer|restaurer|sauvegarder|mettre a jour|mettre à jour|supprimer)' "$REPO_ROOT/menu.sh"
+@test "menu exposes dry-run but no real apply action" {
+  grep -F 'Dry-run complet HOST -> KVM -> VM_DEVOPS -> BACKUP' "$REPO_ROOT/menu.sh"
+  run grep -Ei '^[[:space:]]*[0-9]+\).*(appliquer|apply reel|apply réel|installation reelle|installation réelle|restaurer|sauvegarder|supprimer)'
   [ "$status" -ne 0 ]
 }
 
-@test "installer remains hard disabled" {
-  grep -F 'INSTALLER DISABLED' "$REPO_ROOT/install.sh"
+@test "installer supports full dry-run and hard-blocks apply" {
+  grep -F 'export DRY_RUN=true' "$REPO_ROOT/install.sh"
+  grep -F 'export REAL_MACHINE_APPROVED=false' "$REPO_ROOT/install.sh"
+  grep -F 'orchestrator_run_all' "$REPO_ROOT/install.sh"
+  grep -F 'REAL APPLY DISABLED' "$REPO_ROOT/install.sh"
   grep -F 'exit 10' "$REPO_ROOT/install.sh"
 }
