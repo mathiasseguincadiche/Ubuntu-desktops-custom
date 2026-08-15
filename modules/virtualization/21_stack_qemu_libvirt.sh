@@ -33,7 +33,7 @@ kvm_stack_apply() {
   run_mutating KVM sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install \
     qemu-system-x86 qemu-utils \
     libvirt-daemon-system libvirt-clients \
-    virtinst virt-manager virt-viewer || return "$EXIT_APPLY_FAILED"
+    virt-install virt-manager virt-viewer || return "$EXIT_APPLY_FAILED"
   run_mutating KVM sudo usermod -aG libvirt,kvm "$operator" || return "$EXIT_APPLY_FAILED"
 }
 
