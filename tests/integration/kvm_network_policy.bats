@@ -134,6 +134,11 @@ setup() {
   [[ "$output" == *"BLOCKED"* ]]
 }
 
+@test "network apply module contains no active virsh network mutation yet" {
+  run grep -E '^[[:space:]]*virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-update|net-destroy|net-undefine)([[:space:]]|$)' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  [ "$status" -ne 0 ]
+}
+
 @test "no global firewall flush exists in executable shell code" {
   run bash -c "if grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F)([[:space:]]|$)' --include='*.sh' '$REPO_ROOT'; then exit 1; else exit 0; fi"
   [ "$status" -eq 0 ]
