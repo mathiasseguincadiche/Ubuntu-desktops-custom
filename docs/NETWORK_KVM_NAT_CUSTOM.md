@@ -36,12 +36,12 @@ La politique d'isolation ne devra **pas** coder en dur le sous-réseau du LAN ph
 
 ## Adressage
 
-- `.1-.99` : hors DHCP ; `.2-.99` réservables aux services/VM à adresse stable.
-- `.100-.200` : pool DHCP.
-- `.201-.253` : réserve future.
+- `.1-.99` : hors DHCP et disponibles pour usages futurs contrôlés ; `.1` n'est pas la passerelle.
+- `.100-.200` : pool DHCP et autorité d'adressage des VM.
+- `.201-.253` : hors DHCP, réserve future.
 - `.254` : exclusivement passerelle/interface virtuelle de l'hôte.
 
-Les VM importantes, dont `ubuntu-devops`, recevront une identité MAC déterministe et une réservation DHCP libvirt afin de conserver une adresse prévisible. L'adresse précise sera choisie pendant l'implémentation après contrôle de conflit ; elle n'est pas inventée dans le squelette.
+Les VM importantes, dont `ubuntu-devops`, recevront une identité MAC déterministe et une réservation DHCP libvirt **dans la plage `.100-.200`**. L'adresse précise sera choisie pendant l'implémentation après contrôle de conflit ; elle n'est pas inventée dans le squelette. On évite ainsi une double autorité entre DHCP et configuration IP statique dans le guest.
 
 ## Postchecks obligatoires futurs
 
