@@ -30,22 +30,27 @@ jobs:
           grep -F 'KVM_DHCP_END=192.168.50.200' config/virtualization.conf
           grep -F 'KVM_DNS_1=9.9.9.9' config/virtualization.conf
           grep -F 'KVM_DNS_2=1.1.1.1' config/virtualization.conf
-          grep -F 'KVM_DNS_ENFORCEMENT=implementation-pending-pretest' config/virtualization.conf
+          grep -F 'KVM_DNS_ENFORCEMENT=libvirt-dns-forwarders' config/virtualization.conf
           grep -F 'KVM_BLOCK_PHYSICAL_LAN=true' config/virtualization.conf
           grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' config/virtualization.conf
-          grep -F 'KVM_FIREWALL_ENFORCEMENT=implementation-pending-pretest' config/virtualization.conf
+          grep -F 'KVM_FIREWALL_ENFORCEMENT=project-nftables-guard' config/virtualization.conf
+          grep -F 'KVM_NFT_TABLE=ubuntu_desktops_custom_kvm' config/virtualization.conf
           grep -F 'KVM_FAIL_CLOSED=true' config/virtualization.conf
           grep -F 'KVM_NETWORK_READY_REQUIRED=true' config/virtualization.conf
           grep -F 'VM_DEVOPS_NETWORK=devops-nat' config/devops-vm.conf
-      - name: Architecture phase has no active KVM network mutation
+          grep -F "<forwarder addr='9.9.9.9'/>" virtualization/xml/networks/devops-nat.xml
+          grep -F "<forwarder addr='1.1.1.1'/>" virtualization/xml/networks/devops-nat.xml
+      - name: KVM mutations must use secure runner
         run: |
-          if grep -E '^[[:space:]]*virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-update|net-destroy|net-undefine)([[:space:]]|$)' modules/virtualization/24_networks.sh; then
-            echo 'Active libvirt network mutation found during architecture phase.' >&2
+          grep -F 'run_mutating KVM' modules/virtualization/24_networks.sh
+          if grep -E '^[[:space:]]*(sudo[[:space:]]+)?virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-destroy|net-undefine)' modules/virtualization/24_networks.sh; then
+            echo 'Raw libvirt network mutation bypass detected.' >&2
             exit 1
           fi
-      - name: No executable global firewall flushes
+      - name: Project firewall ownership boundary
         run: |
-          if grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F)([[:space:]]|$)' --include='*.sh' .; then
+          grep -F "TABLE_NAME='ubuntu_desktops_custom_kvm'" scripts/kvm/kvm_network_guard.sh
+          if grep -R -n -E 'nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F' --include='*.sh' .; then
             echo 'Forbidden global firewall flush detected.' >&2
             exit 1
           fi
