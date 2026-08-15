@@ -12,6 +12,7 @@ CONSOLE="$LAB/console.log"
 PIDFILE="$LAB/qemu.pid"
 SSH_KEY="$LAB/id_ed25519"
 SSH_OPTS=(-i "$SSH_KEY" -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
+SCP_OPTS=(-i "$SSH_KEY" -P "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10)
 
 mkdir -p "$LAB"
 : >"$REPORT"
@@ -135,7 +136,6 @@ report 'Install guest bootstrap packages with explicit retry outside cloud-init'
 ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'set -Eeuo pipefail
   for attempt in 1 2 3 4 5; do
     if sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl bind9-dnsutils git qemu-guest-agent; then
-      sudo systemctl enable --now qemu-guest-agent || true
       exit 0
     fi
     echo "guest apt bootstrap attempt $attempt failed" >&2
@@ -155,7 +155,7 @@ ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'dig +time=4 +tries=1 @1.1.1.1 github.
 report 'PASS: Ubuntu 26.04 + Internet + system DNS + Quad9 + Cloudflare'
 
 report '[7/10] Copy repository VM installers into guest'
-scp "${SSH_OPTS[@]}" -r "$ROOT/scripts/devops-vm" "$VM_USER@127.0.0.1:/tmp/ubuntu-desktops-custom-devops-vm"
+scp "${SCP_OPTS[@]}" -r "$ROOT/scripts/devops-vm" "$VM_USER@127.0.0.1:/tmp/ubuntu-desktops-custom-devops-vm"
 ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'chmod +x /tmp/ubuntu-desktops-custom-devops-vm/*.sh'
 
 report '[8/10] Execute real DevOps installers inside Ubuntu 26.04 VM'
