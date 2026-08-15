@@ -43,6 +43,10 @@ La politique d'isolation ne devra **pas** coder en dur le sous-réseau du LAN ph
 
 Les VM importantes, dont `ubuntu-devops`, recevront une identité MAC déterministe et une réservation DHCP libvirt **dans la plage `.100-.200`**. L'adresse précise sera choisie pendant l'implémentation après contrôle de conflit ; elle n'est pas inventée dans le squelette. On évite ainsi une double autorité entre DHCP et configuration IP statique dans le guest.
 
+## Tests d'isolation futurs
+
+Le PRE-TEST devra utiliser au minimum deux guests contrôlés afin de vérifier séparément VM↔VM et HOST↔VM. Le test VM→LAN doit viser une adresse réellement découverte sur le LAN physique et dont la réponse attendue est connue ; un simple timeout vers une adresse inexistante ne constitue pas une preuve d'isolation. Les tests d'exposition entrante devront vérifier qu'aucune règle DNAT/port-forward inattendue n'expose les guests.
+
 ## Postchecks obligatoires futurs
 
 Le module réseau ne pourra être déclaré `SUCCESS` qu'après validation de :
@@ -54,7 +58,7 @@ Le module réseau ne pourra être déclaré `SUCCESS` qu'après validation de :
 5. VM → HOST ;
 6. VM → VM ;
 7. VM → Internet ;
-8. VM → LAN physique : échec attendu ;
+8. VM → LAN physique : blocage démontré ;
 9. LAN physique/Internet → VM : aucune exposition entrante non explicitement configurée.
 
 ## Gate de sécurité
