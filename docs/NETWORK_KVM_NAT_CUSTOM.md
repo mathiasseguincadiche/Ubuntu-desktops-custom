@@ -28,6 +28,8 @@
 
 Le NAT libvirt seul n'est pas considéré comme une preuve suffisante d'isolation vis-à-vis du LAN physique. La phase d'implémentation devra ajouter une politique de filtrage explicite et testée, sans flush global de nftables/iptables et sans perturber le firewall existant de l'hôte.
 
+La politique d'isolation ne devra **pas** coder en dur le sous-réseau du LAN physique. Au PRECHECK, le moteur devra inventorier les routes et interfaces réellement actives de l'hôte, identifier les réseaux directement connectés hors `devops-nat`, détecter tout chevauchement avec `192.168.50.0/24`, puis construire une politique de filtrage minimale. Une ambiguïté ou un chevauchement doit produire `BLOCKED / MANUAL_ACTION_REQUIRED`, jamais une règle approximative.
+
 ## Adressage
 
 - `.1-.99` : hors DHCP ; `.2-.99` réservables aux services/VM à adresse stable.
@@ -35,7 +37,21 @@ Le NAT libvirt seul n'est pas considéré comme une preuve suffisante d'isolatio
 - `.201-.253` : réserve future.
 - `.254` : exclusivement passerelle/interface virtuelle de l'hôte.
 
-Les VM importantes, dont `ubuntu-devops`, pourront recevoir une réservation DHCP déterministe.
+Les VM importantes, dont `ubuntu-devops`, recevront une identité MAC déterministe et une réservation DHCP libvirt afin de conserver une adresse prévisible. L'adresse précise sera choisie pendant l'implémentation après contrôle de conflit ; elle n'est pas inventée dans le squelette.
+
+## Postchecks obligatoires futurs
+
+Le module réseau ne pourra être déclaré `SUCCESS` qu'après validation de :
+
+1. interface `virbr50` et adresse `192.168.50.254/24` sur le HOST ;
+2. DHCP dans la plage `.100-.200` ;
+3. résolution DNS via les DNS prévus ;
+4. HOST → VM ;
+5. VM → HOST ;
+6. VM → VM ;
+7. VM → Internet ;
+8. VM → LAN physique : échec attendu ;
+9. LAN physique/Internet → VM : aucune exposition entrante non explicitement configurée.
 
 ## Gate de sécurité
 
