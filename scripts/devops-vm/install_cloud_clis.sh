@@ -4,27 +4,40 @@ set -Eeuo pipefail
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { printf '%s\n' 'ERROR: root required.' >&2; exit 1; }
 
 apt-get update
-apt-get -y install ca-certificates curl unzip gnupg
+apt-get -y install ca-certificates curl unzip gnupg dirmngr
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# AWS CLI v2 official installer. Download to disk first: never curl|sh.
-curl -fsSL https://awscli.amazonaws.com/v2/install.sh -o "$tmp/aws-install.sh"
-chmod 0755 "$tmp/aws-install.sh"
-"$tmp/aws-install.sh" --system
+# AWS CLI v2: official bundled installer + official detached PGP signature.
+aws_zip="$tmp/awscliv2.zip"
+aws_sig="$tmp/awscliv2.sig"
+aws_fingerprint='FB5DB77FD5C118B80511ADA8A6310ACC4672475C'
+curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o "$aws_zip"
+curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip.sig -o "$aws_sig"
+export GNUPGHOME="$tmp/gnupg"
+install -m 0700 -d "$GNUPGHOME"
+gpg --batch --keyserver hkps://keyserver.ubuntu.com --recv-keys "$aws_fingerprint"
+actual_fingerprint="$(gpg --batch --with-colons --fingerprint "$aws_fingerprint" | awk -F: '$1=="fpr" {print $10; exit}')"
+[[ "$actual_fingerprint" == "$aws_fingerprint" ]] || { printf '%s\n' 'ERROR: AWS CLI signing key fingerprint mismatch.' >&2; exit 2; }
+gpg --batch --verify "$aws_sig" "$aws_zip"
+unzip -q "$aws_zip" -d "$tmp"
+if command -v aws >/dev/null 2>&1; then
+  "$tmp/aws/install" --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+else
+  "$tmp/aws/install" --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
+fi
 aws --version
 
-# Microsoft documents using an earlier Ubuntu repository when the current
-# distribution does not yet have an Azure CLI package. Project policy pins
-# that compatibility fallback explicitly instead of silently guessing.
+# Microsoft documents using the latest jammy repository when a newer Ubuntu
+# distribution does not yet have a native Azure CLI package.
 . /etc/os-release
 codename="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
-[[ -n "$codename" ]] || { printf '%s\n' 'ERROR: Ubuntu codename unavailable.' >&2; exit 2; }
+[[ -n "$codename" ]] || { printf '%s\n' 'ERROR: Ubuntu codename unavailable.' >&2; exit 3; }
 repo_codename="$codename"
 if [[ "$codename" == resolute ]]; then
   repo_codename="${AZURE_CLI_REPO_FALLBACK:-jammy}"
-  [[ "$repo_codename" == jammy ]] || { printf '%s\n' 'ERROR: Azure CLI fallback must remain jammy for Resolute unless policy is revised.' >&2; exit 3; }
+  [[ "$repo_codename" == jammy ]] || { printf '%s\n' 'ERROR: Azure CLI fallback must remain jammy for Resolute unless policy is revised.' >&2; exit 4; }
 fi
 
 install -m 0755 -d /etc/apt/keyrings
