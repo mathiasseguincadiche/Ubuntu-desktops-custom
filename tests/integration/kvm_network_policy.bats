@@ -68,6 +68,8 @@ setup() {
   [ "$status" -eq 0 ]
   run grep -F 'fail_closed: true' "$REPO_ROOT/manifests/virtualization/networks.yml"
   [ "$status" -eq 0 ]
+  run grep -F 'fail closed if physical LAN boundaries cannot be determined reliably' "$REPO_ROOT/modules/virtualization/20_preflight_kvm.sh"
+  [ "$status" -eq 0 ]
 }
 
 @test "physical LAN is discovered dynamically" {
