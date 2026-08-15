@@ -2,6 +2,7 @@ networks:
   devops-nat:
     scope: KVM
     mode: nat
+    autostart: true
     bridge: virbr50
     cidr: 192.168.50.0/24
     gateway: 192.168.50.254
