@@ -58,6 +58,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "real machine gate remains closed" {
+  run grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+}
+
 @test "network apply remains blocked during architecture phase" {
   run bash -c "source '$REPO_ROOT/modules/virtualization/24_networks.sh'; module_apply"
   [ "$status" -eq 8 ]
