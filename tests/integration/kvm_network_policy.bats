@@ -60,6 +60,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "guest network template remains DHCP client" {
+  run grep -F 'dhcp4: true' "$REPO_ROOT/virtualization/cloud-init/network-config.tpl"
+  [ "$status" -eq 0 ]
+}
+
 @test "network contract requires dynamic route overlap detection" {
   run grep -F 'reject overlap between 192.168.50.0/24' "$REPO_ROOT/modules/virtualization/24_networks.sh"
   [ "$status" -eq 0 ]
