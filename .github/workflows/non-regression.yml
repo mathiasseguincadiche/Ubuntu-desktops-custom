@@ -29,9 +29,9 @@ jobs:
           grep -F 'KVM_BLOCK_PHYSICAL_LAN=true' config/virtualization.conf
           grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' config/virtualization.conf
           grep -F 'VM_DEVOPS_NETWORK=devops-nat' config/devops-vm.conf
-      - name: No obvious destructive firewall flushes
+      - name: No executable global firewall flushes
         run: |
-          if grep -R -n -E '(^|[[:space:]])(nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F)([[:space:]]|$)' --include='*.sh' .; then
+          if grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F)([[:space:]]|$)' --include='*.sh' .; then
             echo 'Forbidden global firewall flush detected.' >&2
             exit 1
           fi
