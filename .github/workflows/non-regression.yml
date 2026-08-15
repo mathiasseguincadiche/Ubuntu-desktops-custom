@@ -33,6 +33,12 @@ jobs:
           grep -F 'KVM_BLOCK_PHYSICAL_LAN=true' config/virtualization.conf
           grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' config/virtualization.conf
           grep -F 'VM_DEVOPS_NETWORK=devops-nat' config/devops-vm.conf
+      - name: Architecture phase has no active KVM network mutation
+        run: |
+          if grep -E '^[[:space:]]*virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-update|net-destroy|net-undefine)([[:space:]]|$)' modules/virtualization/24_networks.sh; then
+            echo 'Active libvirt network mutation found during architecture phase.' >&2
+            exit 1
+          fi
       - name: No executable global firewall flushes
         run: |
           if grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F)([[:space:]]|$)' --include='*.sh' .; then
