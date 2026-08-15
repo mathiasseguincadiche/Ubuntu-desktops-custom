@@ -28,6 +28,13 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "canonical XML fixture carries gateway and DHCP contract" {
+  run grep -F "address='192.168.50.254'" "$REPO_ROOT/tests/fixtures/network/expected-devops-nat.xml"
+  [ "$status" -eq 0 ]
+  run grep -F "start='192.168.50.100' end='192.168.50.200'" "$REPO_ROOT/tests/fixtures/network/expected-devops-nat.xml"
+  [ "$status" -eq 0 ]
+}
+
 @test "DNS policy uses Quad9 and Cloudflare" {
   run grep -F 'KVM_DNS_1=9.9.9.9' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
