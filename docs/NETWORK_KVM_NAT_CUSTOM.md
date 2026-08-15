@@ -9,6 +9,7 @@
 - DNS 2 : `1.1.1.1`
 - Bridge libvirt prévu : `virbr50`
 - Réseau libvirt : `devops-nat`
+- Autostart réseau : activé
 
 `192.168.50.0/24` est le réseau **virtuel KVM du projet**, distinct du LAN physique de la workstation. L'hôte y participe via `virbr50` à l'adresse `.254`, ce qui permet HOST↔VM sans exposer les VM au LAN physique.
 
