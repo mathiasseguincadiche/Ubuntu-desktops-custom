@@ -15,6 +15,7 @@ Toutes les VM gérées par le projet utilisent par défaut le réseau libvirt `d
 
 - réseau virtuel KVM : `192.168.50.0/24`
 - bridge : `virbr50`
+- autostart : activé
 - passerelle/interface HOST : `192.168.50.254`
 - DHCP : `192.168.50.100-200`
 - DNS : `9.9.9.9`, `1.1.1.1`
@@ -32,6 +33,10 @@ Le NAT seul n'est pas une preuve d'isolation du LAN. L'implémentation devra app
 ## VM DevOps
 
 `ubuntu-devops` est attachée explicitement à `devops-nat`. Son adresse stable sera fournie par une réservation DHCP libvirt liée à une identité MAC déterministe, choisie après contrôle de conflit dans la plage DHCP `.100-.200`. Le guest reste en DHCP : libvirt/dnsmasq constitue ainsi l'autorité unique d'adressage.
+
+## Validation réseau obligatoire
+
+Le futur PRE-TEST doit prouver HOST↔VM, VM↔VM, VM→Internet, DNS, blocage VM→LAN physique, absence d'exposition entrante inattendue, préservation du firewall existant, idempotence des règles et persistance après redémarrage.
 
 ## Gate
 
