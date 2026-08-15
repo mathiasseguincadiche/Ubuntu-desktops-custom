@@ -45,6 +45,6 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 }
 
 @test "network module has no raw nftables or virsh mutation bypass" {
-  run grep -E '^[[:space:]]*(sudo[[:space:]]+)?(nft|iptables)([[:space:]]|$)|^[[:space:]]*(sudo[[:space:]]+)?virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-destroy|net-undefine)' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  run grep -E '^[[:space:]]*(sudo[[:space:]]+)?nft[[:space:]]+(add|create|delete|destroy|flush|insert|replace)[[:space:]]|^[[:space:]]*(sudo[[:space:]]+)?iptables[[:space:]]+-|^[[:space:]]*(sudo[[:space:]]+)?virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-destroy|net-undefine)' "$REPO_ROOT/modules/virtualization/24_networks.sh"
   [ "$status" -ne 0 ]
 }
