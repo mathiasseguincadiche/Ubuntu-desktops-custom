@@ -1,0 +1,48 @@
+name: host-package-pretest
+
+on:
+  pull_request:
+    paths:
+      - 'modules/host/**'
+      - 'manifests/host/**'
+      - '.github/workflows/host-package-pretest.yml'
+  push:
+    branches: [enhancement/host-polish]
+    paths:
+      - 'modules/host/**'
+      - 'manifests/host/**'
+      - '.github/workflows/host-package-pretest.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-2604-host-packages:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Refresh package metadata
+        run: sudo apt-get update
+      - name: Validate required HOST packages resolve
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          packages=(
+            mesa-vulkan-drivers mesa-utils vulkan-tools intel-media-va-driver vainfo intel-gpu-tools
+            gnome-shell-extension-manager
+            steam-installer steam-devices gamemode gamescope mangohud mangoapp
+            nvme-cli smartmontools lm-sensors lshw usbutils pciutils ethtool powertop v4l-utils
+            pipewire-bin wireplumber
+          )
+          failed=0
+          for package in "${packages[@]}"; do
+            candidate="$(apt-cache policy "$package" | awk '/Candidate:/ {print $2; exit}')"
+            if [[ -z "$candidate" || "$candidate" == '(none)' ]]; then
+              echo "MISSING: $package" >&2
+              failed=1
+            else
+              echo "PASS: $package -> $candidate"
+            fi
+          done
+          exit "$failed"
