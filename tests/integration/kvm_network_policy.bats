@@ -63,6 +63,13 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "network policy is fail closed" {
+  run grep -F 'KVM_FAIL_CLOSED=true' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+  run grep -F 'fail_closed: true' "$REPO_ROOT/manifests/virtualization/networks.yml"
+  [ "$status" -eq 0 ]
+}
+
 @test "physical LAN is discovered dynamically" {
   run grep -F 'KVM_PHYSICAL_LAN_DETECTION=dynamic-host-routes' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
