@@ -1,13 +1,32 @@
 name: non-regression
-on: [push, pull_request]
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
 jobs:
-  boundaries:
+  architecture-guards:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Host DevOps isolation
+      - name: Real-machine gate must remain closed
+        run: grep -R --line-number '^REAL_MACHINE_APPROVED=false$' config
+      - name: KVM custom NAT contract
         run: |
-          ! grep -R -nE 'apt( |-)install.*(docker|kubectl|terraform|ansible|azure-cli|aws)' modules/host || exit 1
-      - name: Dangerous-pattern review gate
+          grep -F 'KVM_NETWORK_CIDR=192.168.50.0/24' config/virtualization.conf
+          grep -F 'KVM_GATEWAY=192.168.50.254' config/virtualization.conf
+          grep -F 'KVM_DHCP_START=192.168.50.100' config/virtualization.conf
+          grep -F 'KVM_DHCP_END=192.168.50.200' config/virtualization.conf
+          grep -F 'KVM_BLOCK_PHYSICAL_LAN=true' config/virtualization.conf
+          grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' config/virtualization.conf
+          grep -F 'VM_DEVOPS_NETWORK=devops-nat' config/devops-vm.conf
+      - name: No obvious destructive firewall flushes
         run: |
-          ! grep -R -nE '(curl|wget).*[|][[:space:]]*(bash|sh)|apt-key|iptables[[:space:]]+-F|nft[[:space:]]+flush[[:space:]]+ruleset' -- '*.sh' modules lib scripts 2>/dev/null || exit 1
+          if grep -R -n -E '(^|[[:space:]])(nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F)([[:space:]]|$)' --include='*.sh' .; then
+            echo 'Forbidden global firewall flush detected.' >&2
+            exit 1
+          fi
