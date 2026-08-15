@@ -103,6 +103,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "network rollback is project-owned and targeted" {
+  run grep -F 'rollback only project-owned network/firewall changes' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  [ "$status" -eq 0 ]
+}
+
 @test "validation contract requires blocked LAN proof" {
   run grep -F 'VM -> physical LAN = BLOCKED' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
   [ "$status" -eq 0 ]
