@@ -12,7 +12,7 @@ jobs:
   architecture-guards:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Real-machine gate must remain closed
         run: |
           grep -F 'REAL_MACHINE_APPROVED=false' config/virtualization.conf

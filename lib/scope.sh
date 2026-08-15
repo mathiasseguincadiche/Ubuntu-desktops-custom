@@ -8,10 +8,10 @@ scope_valid() {
 }
 
 assert_scope() {
-  local requested="$1"
+  local requested="$1" active="${2:-${ACTIVE_SCOPE:-}}"
   scope_valid "$requested" || return "$EXIT_INVALID_ARGUMENT"
-  if [[ -n "${ACTIVE_SCOPE:-}" && "$ACTIVE_SCOPE" != "$requested" ]]; then
-    log_error ENGINE "scope violation active=$ACTIVE_SCOPE requested=$requested"
+  if [[ -n "$active" && "$active" != "$requested" ]]; then
+    log_error ENGINE "scope violation active=$active requested=$requested"
     return "$EXIT_SECURITY_BLOCK"
   fi
 }

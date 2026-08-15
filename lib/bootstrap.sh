@@ -27,8 +27,11 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/retry.sh"
   # shellcheck source=lib/runner.sh
   source "$REPO_ROOT/lib/runner.sh"
+  # shellcheck source=lib/orchestrator.sh
+  source "$REPO_ROOT/lib/orchestrator.sh"
 
   DRY_RUN="${DRY_RUN:-true}"
+  ORCH_RESUME="${ORCH_RESUME:-false}"
   config_load_dir "$REPO_ROOT/config"
 
   LOG_ROOT="${LOG_ROOT:-$REPO_ROOT/logs}"
@@ -41,6 +44,7 @@ engine_bootstrap() {
   safe_mkdir "$REPORT_ROOT"
   log_init
   state_init
+  orchestrator_reset
 
-  log_info ENGINE "bootstrap run_id=$RUN_ID dry_run=$DRY_RUN real_machine_approved=${REAL_MACHINE_APPROVED:-false}"
+  log_info ENGINE "bootstrap run_id=$RUN_ID dry_run=$DRY_RUN resume=$ORCH_RESUME real_machine_approved=${REAL_MACHINE_APPROVED:-false}"
 }
