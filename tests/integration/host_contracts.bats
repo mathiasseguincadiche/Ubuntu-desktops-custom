@@ -38,16 +38,28 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "implemented HOST package mutations use secure runner" {
-  grep -F 'run_mutating HOST sudo apt-get update' "$REPO_ROOT/modules/host/01_os_updates.sh"
-  grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade' "$REPO_ROOT/modules/host/01_os_updates.sh"
-  grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install' "$REPO_ROOT/modules/host/02_firmware_microcode.sh"
-  grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install' "$REPO_ROOT/modules/host/03_graphics_intel_arc.sh"
+@test "implemented HOST mutations use secure runner" {
+  local file
+  for file in \
+    01_os_updates.sh \
+    02_firmware_microcode.sh \
+    03_graphics_intel_arc.sh \
+    04_multimedia_codecs.sh \
+    05_desktop_apps.sh \
+    06_terminal_shell.sh \
+    07_gaming.sh; do
+    grep -F 'run_mutating HOST' "$REPO_ROOT/modules/host/$file"
+  done
 }
 
 @test "HOST modules contain no raw package or service mutation bypass" {
   run grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(apt|apt-get)[[:space:]]+(install|upgrade|dist-upgrade|full-upgrade)|^[[:space:]]*(sudo[[:space:]]+)?systemctl[[:space:]]+(enable|disable|start|stop|restart)' "$REPO_ROOT/modules/host"
   [ "$status" -ne 0 ]
+}
+
+@test "desktop apps keep MarkText stale upstream disabled by default" {
+  grep -F 'MARKDOWN_EDITOR=ghostwriter' "$REPO_ROOT/config/applications.conf"
+  grep -F 'MARKTEXT_AUTO_INSTALL=false' "$REPO_ROOT/config/applications.conf"
 }
 
 @test "HOST validation advertises architecture readiness not machine readiness" {
