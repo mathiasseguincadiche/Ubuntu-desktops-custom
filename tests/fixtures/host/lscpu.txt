@@ -1,0 +1,4 @@
+Architecture:             x86_64
+CPU(s):                   16
+Model name:               AMD Ryzen 7 7700 8-Core Processor
+Virtualization:           AMD-V
