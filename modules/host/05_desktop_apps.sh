@@ -3,26 +3,58 @@ set -Eeuo pipefail
 
 host_apps_precheck() {
   assert_scope HOST
-  command -v apt-cache >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
+  command -v apt-get >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
+  command -v sudo >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
+  [[ -r "$REPO_ROOT/scripts/vendor/install_vscode_repo.sh" ]] || return "$EXIT_PRECHECK_FAILED"
+  [[ -r "$REPO_ROOT/scripts/vendor/install_brave_repo.sh" ]] || return "$EXIT_PRECHECK_FAILED"
+  [[ -r "$REPO_ROOT/scripts/vendor/install_drawio_release.sh" ]] || return "$EXIT_PRECHECK_FAILED"
+  [[ -r "$REPO_ROOT/scripts/vendor/install_flatpak_apps.sh" ]] || return "$EXIT_PRECHECK_FAILED"
 }
 
 host_apps_plan() {
   cat <<'EOF'
-PLAN ONLY:
-- VS Code with Remote SSH support for KVM guests
-- PDF editor, OBS Studio, FileZilla, MarkText/Markdown editor, draw.io
-- Brave Browser, Bitwarden, VLC, Remmina
-- OnlyOffice and LibreOffice
-- enhanced Nautilus integration/extensions where compatible with Ubuntu 26.04
-- prefer vendor/Ubuntu-supported repositories and sandboxed packaging only when justified
-- verify desktop integration after each application family
+COMPLETE DESKTOP APPLICATION PLAN:
+- Ubuntu packages: OBS Studio, FileZilla, PDF Arranger, Remmina RDP/VNC, LibreOffice
+- Nautilus extensions: administrative actions and image resize/rotate
+- maintained Markdown editor: Ghostwriter from Ubuntu 26.04
+- VS Code from Microsoft's signed official APT repository + Remote SSH extension
+- Brave from Brave's signed official APT repository
+- Bitwarden Desktop and ONLYOFFICE Desktop Editors through their documented Flathub distributions
+- draw.io from the official jgraph/drawio-desktop GitHub release with GitHub SHA-256 asset digest verification
+- MarkText is not auto-installed because its official stable upstream is stale; Ghostwriter is the safe default
+- no curl|bash installer and no apt-key usage
+- all mutations are executed only through run_mutating
 EOF
 }
 
 host_apps_apply() {
-  log_info HOST 'desktop applications APPLY intentionally disabled during pre-test architecture phase'
+  run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install \
+    ca-certificates curl gnupg jq flatpak \
+    obs-studio filezilla pdfarranger \
+    remmina remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-secret \
+    libreoffice libreoffice-gnome \
+    nautilus-admin nautilus-image-converter \
+    ghostwriter || return "$EXIT_APPLY_FAILED"
+
+  run_mutating HOST sudo bash "$REPO_ROOT/scripts/vendor/install_vscode_repo.sh" || return "$EXIT_APPLY_FAILED"
+  run_mutating HOST code --install-extension ms-vscode-remote.remote-ssh --force || return "$EXIT_APPLY_FAILED"
+  run_mutating HOST sudo bash "$REPO_ROOT/scripts/vendor/install_brave_repo.sh" || return "$EXIT_APPLY_FAILED"
+  run_mutating HOST sudo bash "$REPO_ROOT/scripts/vendor/install_flatpak_apps.sh" || return "$EXIT_APPLY_FAILED"
+  run_mutating HOST sudo bash "$REPO_ROOT/scripts/vendor/install_drawio_release.sh" || return "$EXIT_APPLY_FAILED"
 }
 
 host_apps_postcheck() {
-  command -v apt-cache >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+  if is_true "${DRY_RUN:-true}"; then
+    log_info HOST 'dry-run: desktop applications postcheck deferred'
+    return 0
+  fi
+
+  local cmd
+  for cmd in code brave-browser obs filezilla remmina libreoffice pdfarranger ghostwriter flatpak; do
+    command -v "$cmd" >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+  done
+  code --list-extensions | grep -Fxqi 'ms-vscode-remote.remote-ssh' || return "$EXIT_POSTCHECK_FAILED"
+  flatpak info --system com.bitwarden.desktop >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+  flatpak info --system org.onlyoffice.desktopeditors >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+  dpkg-query -W drawio >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
 }
