@@ -80,8 +80,10 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "existing host firewall must be preserved" {
+@test "existing host firewall must be preserved and mechanism deferred" {
   run grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+  run grep -F 'KVM_FIREWALL_ENFORCEMENT=implementation-pending-pretest' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
   [ -f "$REPO_ROOT/tests/fixtures/network/firewall-existing.txt" ]
 }
