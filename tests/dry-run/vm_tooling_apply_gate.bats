@@ -53,6 +53,6 @@ EOF
     vm_iac_apply
   "
   rm -rf "$tmp"
-  [ "$status" -eq 6 ]
+  [ "$status" -eq 5 ]
   [[ "$output" == *'SECURITY_BLOCK'* ]]
 }
