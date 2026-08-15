@@ -1,0 +1,22 @@
+catalog:
+  schema: 1
+  refreshed_at: '2026-08-14'
+  refresh_policy: official-sources-only
+  ubuntu:
+    resolute-26.04-lts:
+      codename: resolute
+      architecture: amd64
+      desktop_iso:
+        filename: ubuntu-26.04-desktop-amd64.iso
+        source: https://releases.ubuntu.com/26.04/
+        checksums: https://releases.ubuntu.com/26.04/SHA256SUMS
+      server_iso:
+        filename: ubuntu-26.04-live-server-amd64.iso
+        source: https://releases.ubuntu.com/26.04/
+        checksums: https://releases.ubuntu.com/26.04/SHA256SUMS
+      server_cloud_image:
+        filename: ubuntu-26.04-server-cloudimg-amd64.img
+        source: https://cloud-images.ubuntu.com/releases/26.04/release/
+        checksums: https://cloud-images.ubuntu.com/releases/26.04/release/SHA256SUMS
+      preferred_for_devops_vm: server_cloud_image
+      verification_required: sha256-and-gpg-where-available
