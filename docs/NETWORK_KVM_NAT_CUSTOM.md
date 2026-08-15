@@ -98,6 +98,10 @@ La configuration décrit le **résultat attendu**, pas encore l'implémentation.
 
 **À décider par pré-test :** mécanisme exact de filtrage persistant, intégration au firewall existant et mécanisme exact d'enforcement des deux DNS. Ces choix techniques ne pourront pas réduire les garanties du contrat figé.
 
+## Principe fail-closed
+
+Si le moteur ne peut pas déterminer de manière fiable le LAN physique, détecte un chevauchement, ne peut pas préserver le firewall existant, ou ne peut pas démontrer le blocage VM→LAN, le résultat doit être `BLOCKED` et non un réseau partiellement configuré présenté comme sain.
+
 ## Gate de sécurité
 
 Ce document et le XML sont déclaratifs. Aucun réseau n'est créé ou modifié tant que `REAL_MACHINE_APPROVED=false` et que le pré-test n'est pas validé.
