@@ -42,10 +42,12 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "DNS policy uses Quad9 and Cloudflare" {
+@test "DNS policy uses Quad9 and Cloudflare and defers enforcement" {
   run grep -F 'KVM_DNS_1=9.9.9.9' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
   run grep -F 'KVM_DNS_2=1.1.1.1' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+  run grep -F 'enforcement: implementation-pending-pretest' "$REPO_ROOT/manifests/virtualization/networks.yml"
   [ "$status" -eq 0 ]
 }
 
