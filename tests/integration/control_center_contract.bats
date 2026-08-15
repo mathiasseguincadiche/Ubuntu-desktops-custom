@@ -27,7 +27,7 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'pretest_check_backup_safety' "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
-@test "real machine apply remains explicitly blocked in report" {
+@test "diagnostic still reports real machine apply as blocked" {
   grep -F 'REAL MACHINE APPLY: BLOCKED' "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
@@ -46,12 +46,15 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'verdict=FULL_DRY_RUN_PASS' "$REPO_ROOT/lib/apply_gate.sh"
 }
 
-@test "real apply feature remains hard closed" {
-  grep -F 'REAL_APPLY_FEATURE_ENABLED=false' "$REPO_ROOT/config/apply-gate.conf"
-  grep -F 'REAL APPLY BLOCKED: feature flag REAL_APPLY_FEATURE_ENABLED=false.' "$REPO_ROOT/install.sh"
+@test "rc1 enables guarded apply path while static runtime approval stays closed" {
+  grep -F 'REAL_APPLY_FEATURE_ENABLED=true' "$REPO_ROOT/config/apply-gate.conf"
+  grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'REAL APPLY BLOCKED: an interactive TTY is mandatory.' "$REPO_ROOT/install.sh"
+  grep -F 'export REAL_MACHINE_APPROVED=true' "$REPO_ROOT/lib/apply_gate.sh"
 }
 
-@test "future real apply requires backup proof and explicit confirmations" {
+@test "real apply requires backup proof and explicit confirmations" {
+  grep -F 'REAL_APPLY_REQUIRE_CURRENT_COMMIT_DRY_RUN=true' "$REPO_ROOT/config/apply-gate.conf"
   grep -F 'REAL_APPLY_REQUIRE_VERIFIED_BACKUP=true' "$REPO_ROOT/config/apply-gate.conf"
   grep -F 'REAL_APPLY_REQUIRE_EXACT_CONFIRMATION=true' "$REPO_ROOT/config/apply-gate.conf"
   grep -F 'REAL_APPLY_PHASE_CONFIRMATION=true' "$REPO_ROOT/config/apply-gate.conf"
