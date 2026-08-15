@@ -6,12 +6,20 @@ Cet index indique quel document utiliser selon l'opération à réaliser.
 
 1. `INSTALLATION_GUIDE.md` — procédure canonique depuis Ubuntu Desktop 26.04 LTS propre jusqu'à l'APPLY protégé.
 2. `HOST_PREFLIGHT_CONTRACT.md` — conditions que le HOST doit respecter.
-3. `MODULE_EXECUTION_PLAN.md` — ordre HOST → KVM → VM_DEVOPS → BACKUP.
+3. `HOST_RUNBOOK.md` — exploitation du HOST physique, matériel, firmware, Intel Arc, desktop, terminal et gaming.
+4. `MODULE_EXECUTION_PLAN.md` — ordre HOST → KVM → VM_DEVOPS → BACKUP.
+5. `GUIDE_DEBUTANT_KVM_LIBVIRT.md` — administration KVM/libvirt CLI-first.
+6. `NETWORK_KVM_NAT_CUSTOM.md` — réseau NAT custom et isolation LAN.
+7. `VM_DEVOPS_RUNBOOK.md` — exploitation de `ubuntu-devops` et de la pile DevOps/DevSecOps.
+8. `BACKUP_RESTORE_RUNBOOK.md` — sauvegarde, restauration et Disaster Recovery.
 
 ## Exploitation quotidienne
 
-- `RUNBOOK_OPERATIONS.md` — **runbook principal** : contrôle quotidien, maintenance, KVM, VM DevOps, réseau, backup, restauration, Disaster Recovery, incidents et rollback.
-- `GUIDE_DEBUTANT_KVM_LIBVIRT.md` — administration KVM/libvirt CLI-first avec commandes de base et procédures de dépannage.
+- `RUNBOOK_OPERATIONS.md` — **runbook principal** : contrôle quotidien, maintenance, KVM, VM DevOps, réseau, backup, restauration, incidents et rollback.
+- `HOST_RUNBOOK.md` — opérations spécifiques au HOST Ubuntu Desktop.
+- `VM_DEVOPS_RUNBOOK.md` — opérations spécifiques à la VM DevOps.
+- `BACKUP_RESTORE_RUNBOOK.md` — procédures Restic, QCOW2 et reconstruction.
+- `TROUBLESHOOTING.md` — diagnostic transversal HOST/KVM/réseau/VM/DevOps/backup.
 
 ## Architecture et fonctionnement interne
 
@@ -19,18 +27,13 @@ Cet index indique quel document utiliser selon l'opération à réaliser.
 - `ORCHESTRATION_ENGINE.md` — moteur, phases, états, reprise et exécution.
 - `NETWORK_KVM_NAT_CUSTOM.md` — contrat `devops-nat`, isolation LAN et diagnostic réseau.
 - `SECURITY.md` — règles de sécurité et principes fail-closed.
+- `MODULE_EXECUTION_PLAN.md` — dépendances entre modules.
 
 ## Sauvegarde et reprise après sinistre
 
-Le chapitre canonique d'exploitation est dans `RUNBOOK_OPERATIONS.md` :
+Document canonique détaillé : `BACKUP_RESTORE_RUNBOOK.md`.
 
-- Backup pré-APPLY ;
-- sauvegarde cohérente des VM ;
-- restauration granulaire via staging ;
-- vérification QCOW2 ;
-- reconstruction complète Ubuntu/KVM/VM ;
-- validation réseau avant redémarrage des guests ;
-- revalidation de la pile DevOps/DevSecOps.
+Le `RUNBOOK_OPERATIONS.md` conserve la synthèse opérationnelle et l'ordre de Disaster Recovery complet.
 
 ## Validation de la release
 
@@ -39,34 +42,36 @@ Le chapitre canonique d'exploitation est dans `RUNBOOK_OPERATIONS.md` :
 
 ## Parcours recommandé
 
-Pour une première utilisation :
+Première utilisation :
 
 ```text
 README.md
    ↓
 INSTALLATION_GUIDE.md
    ↓
-RUNBOOK_OPERATIONS.md
+HOST_RUNBOOK.md
    ↓
 GUIDE_DEBUTANT_KVM_LIBVIRT.md
+   ↓
+VM_DEVOPS_RUNBOOK.md
+   ↓
+BACKUP_RESTORE_RUNBOOK.md
 ```
 
-Pour un incident :
+Incident :
 
 ```text
 RUNBOOK_OPERATIONS.md
    ↓
-section incident concernée
+TROUBLESHOOTING.md
    ↓
-NETWORK_KVM_NAT_CUSTOM.md ou GUIDE_DEBUTANT_KVM_LIBVIRT.md si nécessaire
+document spécialisé concerné
 ```
 
-Pour une reconstruction complète :
+Reconstruction complète :
 
 ```text
-RUNBOOK_OPERATIONS.md
-   ↓
-Disaster Recovery complet
+BACKUP_RESTORE_RUNBOOK.md
    ↓
 INSTALLATION_GUIDE.md
    ↓
