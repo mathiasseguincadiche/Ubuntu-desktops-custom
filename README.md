@@ -13,7 +13,7 @@ Architecture reproductible d'une workstation Ubuntu Desktop 26.04 LTS orientée 
 
 ## Réseau KVM figé
 
-`devops-nat` est le réseau virtuel KVM dédié `192.168.50.0/24`. Le HOST y participe via `192.168.50.254`; DHCP `192.168.50.100-200`; DNS `9.9.9.9` et `1.1.1.1`. Les VM accèdent à Internet par NAT et communiquent avec l'hôte et entre elles ; l'accès initié vers le LAN physique de la workstation est bloqué par politique. Aucun port-forward entrant n'est activé par défaut.
+`devops-nat` est le réseau virtuel KVM dédié `192.168.50.0/24`. Le HOST y participe via `virbr50` / `192.168.50.254`; DHCP `192.168.50.100-200`; DNS `9.9.9.9` et `1.1.1.1`. Les VM accèdent à Internet par NAT et communiquent avec l'hôte et entre elles ; l'accès initié vers le LAN physique de la workstation est bloqué par politique. Aucun port-forward entrant n'est activé par défaut. Le réseau doit survivre au redémarrage et ne pourra être déclaré prêt qu'après preuve complète de connectivité et d'isolation.
 
 Voir `docs/NETWORK_KVM_NAT_CUSTOM.md`.
 
