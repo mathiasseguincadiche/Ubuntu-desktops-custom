@@ -14,6 +14,13 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "host participates on KVM network at gateway address" {
+  run grep -F 'KVM_HOST_PARTICIPATES=true' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+  run grep -F 'KVM_HOST_ADDRESS=192.168.50.254' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+}
+
 @test "DHCP range is 100 through 200" {
   run grep -F 'KVM_DHCP_START=192.168.50.100' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
