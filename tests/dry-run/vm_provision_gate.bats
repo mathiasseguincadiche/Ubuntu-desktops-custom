@@ -35,8 +35,8 @@ EOF
 @test "VM provision apply is blocked when real gate is closed" {
   tmp="$(mktemp -d)"
   mkdir -p "$tmp/pool/base" "$tmp/pool/seeds"
-  : > "$tmp/pool/base/ubuntu-26.04-server-cloudimg-amd64.img"
-  : > "$tmp/pool/seeds/ubuntu-devops-seed.img"
+  printf 'fixture\n' > "$tmp/pool/base/ubuntu-26.04-server-cloudimg-amd64.img"
+  printf 'fixture\n' > "$tmp/pool/seeds/ubuntu-devops-seed.img"
   cat > "$tmp/ubuntu-devops-vm-identity.env" <<'EOF'
 VM_DEVOPS_RESOLVED_MAC=52:54:00:12:34:56
 VM_DEVOPS_RESOLVED_IP=192.168.50.150
