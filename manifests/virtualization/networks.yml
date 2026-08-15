@@ -20,7 +20,7 @@ networks:
       required_upstreams:
         - 9.9.9.9
         - 1.1.1.1
-      enforcement: implementation-pending-pretest
+      enforcement: libvirt-dns-forwarders
     policy:
       fail_closed: true
       vm_to_internet: allow
@@ -34,7 +34,8 @@ networks:
       physical_lan_detection: dynamic-host-routes
       route_overlap_action: block-and-require-manual-review
       preserve_existing_host_firewall: true
-      firewall_enforcement: implementation-pending-pretest
+      firewall_enforcement: project-nftables-guard
+      firewall_table: ubuntu_desktops_custom_kvm
     non_dhcp_ranges:
       low: 192.168.50.1-99
       high: 192.168.50.201-253
