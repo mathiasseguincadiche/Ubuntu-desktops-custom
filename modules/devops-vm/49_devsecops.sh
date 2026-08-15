@@ -12,7 +12,7 @@ vm_devsecops_plan() {
   cat <<'EOF'
 VM DEVSECOPS PLAN:
 - install ShellCheck from Ubuntu repositories
-- install Gitleaks and Trivy from official GitHub releases with published SHA-256 verification
+- install Gitleaks, Trivy and Hadolint from official GitHub releases with published SHA-256 verification
 - install Checkov in an isolated pipx environment
 - keep scan outputs and credentials outside source control by default
 - validate all installed scanners remotely
@@ -27,5 +27,5 @@ vm_devsecops_apply() {
 
 vm_devsecops_postcheck() {
   if is_true "${DRY_RUN:-true}"; then log_info VM_DEVOPS 'dry-run: DevSecOps postcheck deferred'; return 0; fi
-  vm_remote_run_readonly 'shellcheck --version >/dev/null && gitleaks version >/dev/null && trivy --version >/dev/null && checkov --version >/dev/null' >/dev/null || return "$EXIT_POSTCHECK_FAILED"
+  vm_remote_run_readonly 'shellcheck --version >/dev/null && gitleaks version >/dev/null && trivy --version >/dev/null && hadolint --version >/dev/null && checkov --version >/dev/null' >/dev/null || return "$EXIT_POSTCHECK_FAILED"
 }
