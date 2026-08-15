@@ -30,6 +30,7 @@ jobs:
           grep -F 'KVM_DHCP_END=192.168.50.200' config/virtualization.conf
           grep -F 'KVM_DNS_1=9.9.9.9' config/virtualization.conf
           grep -F 'KVM_DNS_2=1.1.1.1' config/virtualization.conf
+          grep -F 'KVM_DNS_ENFORCEMENT=implementation-pending-pretest' config/virtualization.conf
           grep -F 'KVM_BLOCK_PHYSICAL_LAN=true' config/virtualization.conf
           grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' config/virtualization.conf
           grep -F 'KVM_NETWORK_READY_REQUIRED=true' config/virtualization.conf
