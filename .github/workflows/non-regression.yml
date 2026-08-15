@@ -23,6 +23,7 @@ jobs:
       - name: KVM custom NAT contract
         run: |
           grep -F 'KVM_NETWORK_CIDR=192.168.50.0/24' config/virtualization.conf
+          grep -F 'KVM_NETWORK_AUTOSTART=true' config/virtualization.conf
           grep -F 'KVM_GATEWAY=192.168.50.254' config/virtualization.conf
           grep -F 'KVM_HOST_ADDRESS=192.168.50.254' config/virtualization.conf
           grep -F 'KVM_DHCP_START=192.168.50.100' config/virtualization.conf
