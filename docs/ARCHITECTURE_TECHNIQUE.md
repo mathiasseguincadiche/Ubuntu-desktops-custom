@@ -28,7 +28,7 @@ Le NAT seul n'est pas une preuve d'isolation du LAN. L'implémentation devra app
 
 ## VM DevOps
 
-`ubuntu-devops` est attachée explicitement à `devops-nat`. Son adresse stable sera fournie par une réservation DHCP libvirt liée à une identité MAC déterministe ; aucune adresse n'est inventée tant que l'implémentation n'a pas validé les conflits.
+`ubuntu-devops` est attachée explicitement à `devops-nat`. Son adresse stable sera fournie par une réservation DHCP libvirt liée à une identité MAC déterministe, choisie après contrôle de conflit dans la plage DHCP `.100-.200`. Le guest reste en DHCP : libvirt/dnsmasq constitue ainsi l'autorité unique d'adressage.
 
 ## Gate
 
