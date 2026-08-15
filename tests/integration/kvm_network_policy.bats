@@ -70,6 +70,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "validation contract requires blocked LAN proof" {
+  run grep -F 'VM -> physical LAN = BLOCKED' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
+  [ "$status" -eq 0 ]
+}
+
 @test "real machine gate remains closed" {
   run grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
