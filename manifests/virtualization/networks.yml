@@ -9,6 +9,9 @@ networks:
     dhcp:
       start: 192.168.50.100
       end: 192.168.50.200
+      reservations:
+        strategy: deterministic-mac
+        address_source: non-conflicting-address-selected-at-implementation
     dns:
       - 9.9.9.9
       - 1.1.1.1
