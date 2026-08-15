@@ -15,4 +15,6 @@ jobs:
       - name: Bash syntax
         run: find . -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
       - name: ShellCheck common engine and entrypoints
-        run: shellcheck -x lib/*.sh ./*.sh
+        # SC2034 is intentionally excluded: library constants/globals are
+        # consumed by other sourced modules and look unused in isolated files.
+        run: shellcheck -x -e SC2034 lib/*.sh ./*.sh
