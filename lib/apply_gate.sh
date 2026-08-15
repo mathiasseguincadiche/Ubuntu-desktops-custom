@@ -12,6 +12,7 @@ apply_gate_write_dryrun_proof() {
   {
     printf 'commit=%s\n' "$commit"
     printf 'run_id=%s\n' "$RUN_ID"
+    printf 'created_epoch=%s\n' "$(date +%s)"
     printf 'verdict=FULL_DRY_RUN_PASS\n'
   } > "$proof"
 }
@@ -28,8 +29,21 @@ apply_gate_verify_dryrun_proof() {
 
 apply_gate_verify_backup_proof() {
   local proof="$REPO_ROOT/${REAL_APPLY_BACKUP_PROOF_FILE:-state/real-apply/backup-verified.pass}"
+  local current recorded created now max_age age
   [[ -s "$proof" ]] || return "$EXIT_SECURITY_BLOCK"
   grep -Fqx 'verdict=BACKUP_VERIFIED' "$proof" || return "$EXIT_SECURITY_BLOCK"
+
+  current="$(apply_gate_current_commit)"
+  recorded="$(awk -F= '$1=="commit" {print $2; exit}' "$proof")"
+  [[ -n "$recorded" && "$recorded" == "$current" && "$current" != 'UNKNOWN' ]] || return "$EXIT_SECURITY_BLOCK"
+
+  created="$(awk -F= '$1=="created_epoch" {print $2; exit}' "$proof")"
+  [[ "$created" =~ ^[0-9]+$ ]] || return "$EXIT_SECURITY_BLOCK"
+  now="$(date +%s)"
+  max_age="${REAL_APPLY_BACKUP_MAX_AGE_SECONDS:-86400}"
+  [[ "$max_age" =~ ^[0-9]+$ ]] || return "$EXIT_INVALID_ARGUMENT"
+  age=$((now - created))
+  (( age >= 0 && age <= max_age )) || return "$EXIT_SECURITY_BLOCK"
 }
 
 apply_gate_require_tty() {
@@ -60,7 +74,7 @@ apply_gate_check() {
   fi
   if is_true "${REAL_APPLY_REQUIRE_VERIFIED_BACKUP:-true}"; then
     apply_gate_verify_backup_proof || {
-      log_error ENGINE 'REAL APPLY requires a verified pre-apply backup proof.'
+      log_error ENGINE 'REAL APPLY requires a recent verified backup proof for the current commit.'
       return "$EXIT_SECURITY_BLOCK"
     }
   fi
