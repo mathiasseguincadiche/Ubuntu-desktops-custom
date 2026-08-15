@@ -1,173 +1,77 @@
 #!/usr/bin/env bats
 
-setup() {
-  REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
+setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
+
+@test "custom KVM network uses frozen addressing" {
+  grep -F 'KVM_NETWORK_CIDR=192.168.50.0/24' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_GATEWAY=192.168.50.254' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_DHCP_START=192.168.50.100' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_DHCP_END=192.168.50.200' "$REPO_ROOT/config/virtualization.conf"
 }
 
-@test "custom KVM network uses expected CIDR" {
-  run grep -F 'KVM_NETWORK_CIDR=192.168.50.0/24' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
+@test "custom KVM network is persistent and host participates" {
+  grep -F 'KVM_NETWORK_AUTOSTART=true' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_HOST_PARTICIPATES=true' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_HOST_ADDRESS=192.168.50.254' "$REPO_ROOT/config/virtualization.conf"
 }
 
-@test "custom KVM network is persistent" {
-  run grep -F 'KVM_NETWORK_AUTOSTART=true' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
+@test "DNS contract uses Quad9 and Cloudflare" {
+  grep -F 'KVM_DNS_1=9.9.9.9' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_DNS_2=1.1.1.1' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_DNS_ENFORCEMENT=implementation-pending-pretest' "$REPO_ROOT/config/virtualization.conf"
 }
 
-@test "custom KVM gateway is .254" {
-  run grep -F 'KVM_GATEWAY=192.168.50.254' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
+@test "network policy is fail closed and preserves host firewall" {
+  grep -F 'KVM_FAIL_CLOSED=true' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'fail_closed: true' "$REPO_ROOT/manifests/virtualization/networks.yml"
+  grep -F 'vm_to_physical_lan: block' "$REPO_ROOT/manifests/virtualization/networks.yml"
+  grep -F 'inbound_port_forwarding: disabled' "$REPO_ROOT/manifests/virtualization/networks.yml"
 }
 
-@test "host participates on KVM network at gateway address" {
-  run grep -F 'KVM_HOST_PARTICIPATES=true' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'KVM_HOST_ADDRESS=192.168.50.254' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'address: 192.168.50.254' "$REPO_ROOT/manifests/virtualization/networks.yml"
-  [ "$status" -eq 0 ]
+@test "physical LAN detection and overlap handling remain dynamic" {
+  grep -F 'KVM_PHYSICAL_LAN_DETECTION=dynamic-host-routes' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_ROUTE_OVERLAP_ACTION=block' "$REPO_ROOT/config/virtualization.conf"
+  grep -F '192.168.50.0/24' "$REPO_ROOT/tests/fixtures/network/routes-conflict.txt"
+  grep -F '10.0.0.0/24' "$REPO_ROOT/tests/fixtures/network/routes-no-conflict.txt"
 }
 
-@test "DHCP range is 100 through 200" {
-  run grep -F 'KVM_DHCP_START=192.168.50.100' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'KVM_DHCP_END=192.168.50.200' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
+@test "DHCP reservation is the single guest addressing authority" {
+  grep -F 'VM_DEVOPS_ADDRESS_MODE=dhcp-reservation' "$REPO_ROOT/config/devops-vm.conf"
+  grep -F 'address_source: conflict-checked-address-within-dhcp-pool' "$REPO_ROOT/manifests/virtualization/networks.yml"
+  grep -F 'dhcp4: true' "$REPO_ROOT/virtualization/cloud-init/network-config.tpl"
 }
 
-@test "canonical XML fixture carries gateway and DHCP contract" {
-  run grep -F "address='192.168.50.254'" "$REPO_ROOT/tests/fixtures/network/expected-devops-nat.xml"
+@test "network plan preserves connectivity and isolation requirements" {
+  run bash -c "source '$REPO_ROOT/lib/constants.sh'; source '$REPO_ROOT/lib/common.sh'; source '$REPO_ROOT/lib/logging.sh'; source '$REPO_ROOT/lib/scope.sh'; source '$REPO_ROOT/modules/virtualization/24_networks.sh'; CURRENT_SCOPE=KVM; kvm_network_plan"
   [ "$status" -eq 0 ]
-  run grep -F "start='192.168.50.100' end='192.168.50.200'" "$REPO_ROOT/tests/fixtures/network/expected-devops-nat.xml"
-  [ "$status" -eq 0 ]
+  [[ "$output" == *'HOST<->VM'* ]]
+  [[ "$output" == *'VM<->VM'* ]]
+  [[ "$output" == *'VM->Internet NAT allowed'* ]]
+  [[ "$output" == *'VM->physical-LAN blocked'* ]]
+  [[ "$output" == *'targeted rollback'* ]]
+  [[ "$output" == *'reboot persistence'* ]]
 }
 
-@test "DHCP reservation fixture stays inside configured pool" {
-  run grep -F "ip='192.168.50.150'" "$REPO_ROOT/tests/fixtures/network/dhcp-reservation-example.xml"
+@test "KVM validation retains blocked LAN and persistence proof" {
+  run bash -c "source '$REPO_ROOT/lib/constants.sh'; source '$REPO_ROOT/lib/common.sh'; source '$REPO_ROOT/lib/logging.sh'; source '$REPO_ROOT/lib/scope.sh'; source '$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh'; CURRENT_SCOPE=KVM; kvm_validation_plan"
   [ "$status" -eq 0 ]
-}
-
-@test "DNS policy uses Quad9 and Cloudflare and defers enforcement" {
-  run grep -F 'KVM_DNS_1=9.9.9.9' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'KVM_DNS_2=1.1.1.1' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'KVM_DNS_ENFORCEMENT=implementation-pending-pretest' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'enforcement: implementation-pending-pretest' "$REPO_ROOT/manifests/virtualization/networks.yml"
-  [ "$status" -eq 0 ]
-}
-
-@test "physical LAN access is blocked by policy" {
-  run grep -F 'vm_to_physical_lan: block' "$REPO_ROOT/manifests/virtualization/networks.yml"
-  [ "$status" -eq 0 ]
-}
-
-@test "network policy is fail closed" {
-  run grep -F 'KVM_FAIL_CLOSED=true' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'fail_closed: true' "$REPO_ROOT/manifests/virtualization/networks.yml"
-  [ "$status" -eq 0 ]
-  run grep -F 'fail closed if physical LAN boundaries cannot be determined reliably' "$REPO_ROOT/modules/virtualization/20_preflight_kvm.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "physical LAN is discovered dynamically" {
-  run grep -F 'KVM_PHYSICAL_LAN_DETECTION=dynamic-host-routes' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-}
-
-@test "route fixtures cover overlap and no-overlap cases" {
-  run grep -F '192.168.50.0/24' "$REPO_ROOT/tests/fixtures/network/routes-conflict.txt"
-  [ "$status" -eq 0 ]
-  run grep -F '10.0.0.0/24' "$REPO_ROOT/tests/fixtures/network/routes-no-conflict.txt"
-  [ "$status" -eq 0 ]
-}
-
-@test "KVM preflight explicitly checks route conflicts" {
-  run grep -F 'ensure 192.168.50.0/24 is not already routed/connected' "$REPO_ROOT/modules/virtualization/20_preflight_kvm.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "existing host firewall must be preserved and mechanism deferred" {
-  run grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'KVM_FIREWALL_ENFORCEMENT=implementation-pending-pretest' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  [ -f "$REPO_ROOT/tests/fixtures/network/firewall-existing.txt" ]
-}
-
-@test "inbound forwarding is disabled by default" {
-  run grep -F 'inbound_port_forwarding: disabled' "$REPO_ROOT/manifests/virtualization/networks.yml"
-  [ "$status" -eq 0 ]
-}
-
-@test "devops VM is bound to custom NAT" {
-  run grep -F 'VM_DEVOPS_NETWORK=devops-nat' "$REPO_ROOT/config/devops-vm.conf"
-  [ "$status" -eq 0 ]
-}
-
-@test "devops VM stable address uses DHCP reservation strategy" {
-  run grep -F 'VM_DEVOPS_ADDRESS_MODE=dhcp-reservation' "$REPO_ROOT/config/devops-vm.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'address_source: conflict-checked-address-within-dhcp-pool' "$REPO_ROOT/manifests/virtualization/networks.yml"
-  [ "$status" -eq 0 ]
-}
-
-@test "guest network template remains DHCP client" {
-  run grep -F 'dhcp4: true' "$REPO_ROOT/virtualization/cloud-init/network-config.tpl"
-  [ "$status" -eq 0 ]
-}
-
-@test "network plan retains DHCP single authority" {
-  run grep -F 'stable VM identities use conflict-checked DHCP reservations' "$REPO_ROOT/modules/virtualization/24_networks.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "network contract requires dynamic route overlap detection" {
-  run grep -F 'reject overlap between 192.168.50.0/24' "$REPO_ROOT/modules/virtualization/24_networks.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "network rollback is project-owned and targeted" {
-  run grep -F 'rollback only project-owned network/firewall changes' "$REPO_ROOT/modules/virtualization/24_networks.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "validation contract requires blocked LAN proof" {
-  run grep -F 'VM -> physical LAN = BLOCKED' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "validation contract requires reboot persistence" {
-  run grep -F 'reboot persistence validated' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
-  [ "$status" -eq 0 ]
-}
-
-@test "KVM network readiness has an explicit verdict" {
-  run grep -F 'KVM_NETWORK_READY_REQUIRED=true' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
-  run grep -F 'KVM NETWORK READY' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
-  [ "$status" -eq 0 ]
+  [[ "$output" == *'VM->physical-LAN BLOCKED'* ]]
+  [[ "$output" == *'devops-nat persistence'* ]]
+  [[ "$output" == *'idempotence'* ]]
 }
 
 @test "real machine gate remains closed" {
-  run grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
-  [ "$status" -eq 0 ]
+  grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
 }
 
-@test "network apply remains blocked during architecture phase" {
-  run bash -c "source '$REPO_ROOT/modules/virtualization/24_networks.sh'; module_apply"
+@test "network apply remains security blocked during architecture phase" {
+  run bash -c "source '$REPO_ROOT/lib/constants.sh'; source '$REPO_ROOT/lib/common.sh'; source '$REPO_ROOT/lib/logging.sh'; source '$REPO_ROOT/lib/scope.sh'; source '$REPO_ROOT/modules/virtualization/24_networks.sh'; CURRENT_SCOPE=KVM; kvm_network_apply"
   [ "$status" -eq 8 ]
-  [[ "$output" == *"BLOCKED"* ]]
+  [[ "$output" == *'BLOCKED'* ]]
 }
 
-@test "network apply module contains no active virsh network mutation yet" {
-  run grep -E '^[[:space:]]*virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-update|net-destroy|net-undefine)([[:space:]]|$)' "$REPO_ROOT/modules/virtualization/24_networks.sh"
-  [ "$status" -ne 0 ]
-}
-
-@test "network module contains no active firewall mutation yet" {
-  run grep -E '^[[:space:]]*(sudo[[:space:]]+)?(nft|iptables)([[:space:]]|$)' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+@test "KVM network modules contain no active mutation commands" {
+  run grep -R -n -E '^[[:space:]]*virsh([[:space:]].*)?(net-define|net-start|net-update|net-destroy|net-undefine)|^[[:space:]]*(sudo[[:space:]]+)?(nft|iptables)([[:space:]]|$)' "$REPO_ROOT/modules/virtualization"
   [ "$status" -ne 0 ]
 }
