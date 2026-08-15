@@ -20,7 +20,7 @@ setup() {
   [ "$status" -ne 0 ]
 }
 
-@test "network module contains no nft or iptables execution yet" {
+@test "network module contains no active firewall mutation yet" {
   run grep -E '^[[:space:]]*(sudo[[:space:]]+)?(nft|iptables)([[:space:]]|$)' "$REPO_ROOT/modules/virtualization/24_networks.sh"
   [ "$status" -ne 0 ]
 }
