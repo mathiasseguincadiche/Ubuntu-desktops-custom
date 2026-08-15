@@ -23,7 +23,7 @@ _log() {
   local level="$1" scope="$2"
   shift 2
   local message line
-  message="$(redact_text "$*")"
+  message="$(redact_text "$@")"
   line="$(uw_now) $level $scope $message"
   printf '%s\n' "$line"
   if [[ -n "${MAIN_LOG:-}" ]]; then
@@ -31,16 +31,35 @@ _log() {
   fi
 }
 
-log_info() { _log INFO "${1:-ENGINE}" "${*:2}"; }
-log_ok() { _log OK "${1:-ENGINE}" "${*:2}"; }
-log_warn() { _log WARN "${1:-ENGINE}" "${*:2}"; }
-log_error() { _log ERROR "${1:-ENGINE}" "${*:2}" >&2; }
+log_info() {
+  local scope="${1:-ENGINE}"
+  (( $# > 0 )) && shift
+  _log INFO "$scope" "$@"
+}
+
+log_ok() {
+  local scope="${1:-ENGINE}"
+  (( $# > 0 )) && shift
+  _log OK "$scope" "$@"
+}
+
+log_warn() {
+  local scope="${1:-ENGINE}"
+  (( $# > 0 )) && shift
+  _log WARN "$scope" "$@"
+}
+
+log_error() {
+  local scope="${1:-ENGINE}"
+  (( $# > 0 )) && shift
+  _log ERROR "$scope" "$@" >&2
+}
 
 log_command() {
   local scope="$1"
   shift
   local line
-  line="$(uw_now) COMMAND $scope $(redact_text "$*")"
+  line="$(uw_now) COMMAND $scope $(redact_text "$@")"
   if [[ -n "${COMMAND_LOG:-}" ]]; then
     printf '%s\n' "$line" >> "$COMMAND_LOG"
   fi

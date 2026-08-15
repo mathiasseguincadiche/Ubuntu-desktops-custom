@@ -20,15 +20,20 @@ config_load_file() {
       value="${BASH_REMATCH[1]}"
     fi
     printf -v "$key" '%s' "$value"
-    export "$key"
+    export "$key=${!key}"
   done < "$file"
 }
 
 config_load_dir() {
   local dir="$1"
-  local file
+  local file rc
   [[ -d "$dir" ]] || return 0
   while IFS= read -r -d '' file; do
-    config_load_file "$file" || return $?
+    if config_load_file "$file"; then
+      :
+    else
+      rc=$?
+      return "$rc"
+    fi
   done < <(find "$dir" -maxdepth 1 -type f -name '*.conf' -print0 | sort -z)
 }

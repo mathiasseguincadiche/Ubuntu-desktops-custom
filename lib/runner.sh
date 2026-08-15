@@ -9,11 +9,17 @@ _command_string() {
 }
 
 run_command() {
-  local scope="$1" effect="$2"
+  local scope="$1" effect="$2" rc
   shift 2
   [[ "${1:-}" == '--' ]] && shift
 
-  assert_scope "$scope" || return $?
+  if assert_scope "$scope"; then
+    :
+  else
+    rc=$?
+    return "$rc"
+  fi
+
   [[ "$effect" == "$EFFECT_READONLY" || "$effect" == "$EFFECT_MUTATING" ]] || return "$EXIT_INVALID_ARGUMENT"
   (( $# > 0 )) || return "$EXIT_INVALID_ARGUMENT"
 
