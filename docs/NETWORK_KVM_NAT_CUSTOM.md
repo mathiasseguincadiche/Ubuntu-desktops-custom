@@ -88,6 +88,10 @@ Le verdict `KVM NETWORK READY` ne pourra être émis que si **tous** les postche
 8. Test de persistance/reboot en environnement de pré-test.
 9. Seulement ensuite, éligibilité au verdict `KVM NETWORK READY`.
 
+## Limite actuelle du squelette
+
+La configuration décrit le **résultat attendu**, pas encore l'implémentation. En particulier, le choix précis du mécanisme de filtrage compatible avec le firewall Ubuntu 26.04 et la manière de forcer/valider les upstreams DNS seront décidés après pré-test technique. Cette décision évite de figer aujourd'hui une commande firewall ou dnsmasq qui pourrait entrer en conflit avec la pile réellement présente sur l'hôte.
+
 ## Gate de sécurité
 
 Ce document et le XML sont déclaratifs. Aucun réseau n'est créé ou modifié tant que `REAL_MACHINE_APPROVED=false` et que le pré-test n'est pas validé.
