@@ -19,6 +19,8 @@ setup() {
   [ "$status" -eq 0 ]
   run grep -F 'KVM_HOST_ADDRESS=192.168.50.254' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
+  run grep -F 'address: 192.168.50.254' "$REPO_ROOT/manifests/virtualization/networks.yml"
+  [ "$status" -eq 0 ]
 }
 
 @test "DHCP range is 100 through 200" {
