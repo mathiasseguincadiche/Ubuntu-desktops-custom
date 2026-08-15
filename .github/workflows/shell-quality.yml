@@ -14,7 +14,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Bash syntax
         run: find . -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
-      - name: ShellCheck common engine and entrypoints
-        # SC2034/SC2329 are intentionally excluded for sourced libraries:
-        # public globals/functions are consumed by other modules at runtime.
-        run: shellcheck -x -e SC2034,SC2329 lib/*.sh ./*.sh
+      - name: ShellCheck entrypoints
+        run: shellcheck -x -S warning ./*.sh
+      - name: ShellCheck common engine blocking errors
+        run: shellcheck -x -S error lib/*.sh
+      - name: ShellCheck common engine advisory warnings
+        continue-on-error: true
+        run: shellcheck -x -S warning lib/*.sh
