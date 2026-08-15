@@ -15,18 +15,16 @@ chmod 0755 "$tmp/aws-install.sh"
 "$tmp/aws-install.sh" --system
 aws --version
 
-# Azure CLI: Ubuntu 26.04 Resolute must not silently reuse an unsupported repo.
+# Microsoft documents using an earlier Ubuntu repository when the current
+# distribution does not yet have an Azure CLI package. Project policy pins
+# that compatibility fallback explicitly instead of silently guessing.
 . /etc/os-release
 codename="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
-if [[ "$codename" == resolute && "${AZURE_CLI_ALLOW_NOBLE_FALLBACK:-false}" != true ]]; then
-  printf '%s\n' 'AZURE_CLI_BLOCKED: Microsoft support for Ubuntu 26.04/Resolute has not been explicitly approved by project policy.' >&2
-  exit 10
-fi
-
+[[ -n "$codename" ]] || { printf '%s\n' 'ERROR: Ubuntu codename unavailable.' >&2; exit 2; }
+repo_codename="$codename"
 if [[ "$codename" == resolute ]]; then
-  repo_codename=noble
-else
-  repo_codename="$codename"
+  repo_codename="${AZURE_CLI_REPO_FALLBACK:-jammy}"
+  [[ "$repo_codename" == jammy ]] || { printf '%s\n' 'ERROR: Azure CLI fallback must remain jammy for Resolute unless policy is revised.' >&2; exit 3; }
 fi
 
 install -m 0755 -d /etc/apt/keyrings
