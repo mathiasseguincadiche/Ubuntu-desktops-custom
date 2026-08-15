@@ -2,17 +2,33 @@
 set -Eeuo pipefail
 
 # scope=VM_DEVOPS. Docker HOST installation is architecturally forbidden.
-vm_docker_precheck() { assert_scope VM_DEVOPS; }
+vm_docker_precheck() {
+  assert_scope VM_DEVOPS
+  [[ -r "$REPO_ROOT/scripts/devops-vm/install_docker.sh" ]] || return "$EXIT_PRECHECK_FAILED"
+  if is_true "${DRY_RUN:-true}"; then return 0; fi
+  vm_remote_run_readonly 'true' >/dev/null || return "$EXIT_PRECHECK_FAILED"
+}
+
 vm_docker_plan() {
   cat <<'EOF'
-PLAN ONLY:
-- install Docker Engine from official Docker repository
+VM DOCKER PLAN:
+- install Docker Engine from Docker's official signed Ubuntu repository
 - include containerd, Docker CLI, Buildx and Compose plugin
-- configure non-root Docker access for the VM administration user after security review
-- configure log rotation and sane daemon defaults
-- validate hello-world, buildx, compose and container networking
-- Docker installation on HOST remains forbidden by architecture
+- grant the VM administration user Docker access inside the guest only
+- enable Docker service inside VM_DEVOPS only
+- validate daemon, Buildx and Compose remotely
+- Docker installation on HOST remains forbidden
 EOF
 }
-vm_docker_apply() { log_info VM_DEVOPS 'Docker APPLY intentionally disabled during architecture/pre-test phase'; }
-vm_docker_postcheck() { return 0; }
+
+vm_docker_apply() {
+  local remote='/tmp/ubuntu-desktops-custom-install-docker.sh'
+  vm_remote_copy_mutating "$REPO_ROOT/scripts/devops-vm/install_docker.sh" "$remote" || return "$EXIT_APPLY_FAILED"
+  vm_remote_prepare || return "$EXIT_APPLY_FAILED"
+  vm_remote_run_mutating "sudo bash $remote ${VM_REMOTE_USER}; rc=\$?; sudo rm -f $remote; exit \$rc" || return "$EXIT_APPLY_FAILED"
+}
+
+vm_docker_postcheck() {
+  if is_true "${DRY_RUN:-true}"; then log_info VM_DEVOPS 'dry-run: Docker postcheck deferred'; return 0; fi
+  vm_remote_run_readonly 'sudo docker info >/dev/null && docker buildx version >/dev/null && docker compose version >/dev/null' >/dev/null || return "$EXIT_POSTCHECK_FAILED"
+}
