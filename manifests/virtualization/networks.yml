@@ -22,6 +22,7 @@ networks:
         - 1.1.1.1
       enforcement: implementation-pending-pretest
     policy:
+      fail_closed: true
       vm_to_internet: allow
       vm_to_vm: allow
       host_to_vm: allow
