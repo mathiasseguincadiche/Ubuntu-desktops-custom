@@ -16,6 +16,17 @@ esac
 source "$REPO_ROOT/lib/bootstrap.sh"
 engine_bootstrap
 
+if [[ "$MODE" == '--apply' ]]; then
+  if ! is_true "${REAL_APPLY_FEATURE_ENABLED:-false}"; then
+    printf '%s\n' 'REAL APPLY BLOCKED: feature flag REAL_APPLY_FEATURE_ENABLED=false.' >&2
+    exit "$EXIT_SECURITY_BLOCK"
+  fi
+  if ! apply_gate_require_tty; then
+    printf '%s\n' 'REAL APPLY BLOCKED: an interactive TTY is mandatory.' >&2
+    exit "$EXIT_SECURITY_BLOCK"
+  fi
+fi
+
 module_catalog_load "$REPO_ROOT/manifests/module-plan.conf"
 module_catalog_validate
 for module_id in "${CATALOG_ORDER[@]}"; do
@@ -47,12 +58,6 @@ fi
 printf '%s\n' '=== REAL MACHINE APPLY GATE ==='
 printf '%s\n' 'No mutation is allowed until every gate below passes.'
 
-# The current architecture branch must reject --apply immediately.
-if ! is_true "${REAL_APPLY_FEATURE_ENABLED:-false}"; then
-  printf '%s\n' 'REAL APPLY BLOCKED: feature flag REAL_APPLY_FEATURE_ENABLED=false.' >&2
-  exit "$EXIT_SECURITY_BLOCK"
-fi
-
 # Hardware/OS preflight is read-only and must succeed on the actual workstation.
 ACTIVE_SCOPE="$SCOPE_HOST"
 if ! orchestrator_call "${ORCH_PRECHECK[host.preflight]}"; then
@@ -67,8 +72,7 @@ if ! apply_gate_open_runtime; then
   exit "$rc"
 fi
 
-# A future reviewed commit may open the feature flag. Even then, each major
-# domain still requires an independent operator confirmation.
+# Every major domain requires an independent operator confirmation.
 for scope in "$SCOPE_HOST" "$SCOPE_KVM" "$SCOPE_VM_DEVOPS" "$SCOPE_BACKUP"; do
   apply_gate_confirm_phase "$scope" || {
     rc=$?
