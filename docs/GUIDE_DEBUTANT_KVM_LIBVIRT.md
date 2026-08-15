@@ -6,14 +6,17 @@ Statut : structure initiale — sera complétée avant la phase d'utilisation r�
 
 Les exemples du guide utiliseront le réseau `devops-nat` (`192.168.50.0/24`) et la VM `ubuntu-devops`.
 
-La passerelle `192.168.50.254` appartient à l'interface virtuelle de l'hôte. Les VM reçoivent leurs adresses via DHCP ; les VM importantes utilisent une réservation DHCP déterministe.
+La passerelle `192.168.50.254` appartient à l'interface virtuelle `virbr50` de l'hôte. Les VM reçoivent leurs adresses via DHCP `192.168.50.100-200` ; les VM importantes utilisent une réservation DHCP déterministe.
 
-## Commandes réseau de base
+Ce réseau virtuel n'est pas le LAN physique : les VM peuvent joindre Internet, l'hôte et les autres VM, mais leur accès initié vers le LAN physique est bloqué par la politique du projet.
+
+## Commandes réseau de base — lecture
 
 ```bash
 virsh --connect qemu:///system net-list --all
 virsh --connect qemu:///system net-info devops-nat
 virsh --connect qemu:///system net-dumpxml devops-nat
+ip -4 addr show virbr50
 ```
 
 Ces commandes sont de consultation. Le guide distinguera explicitement les commandes de lecture, de modification et les commandes potentiellement destructrices.
