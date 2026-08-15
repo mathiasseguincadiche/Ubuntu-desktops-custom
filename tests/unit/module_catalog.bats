@@ -27,7 +27,7 @@
     printf "%s|%s|%s\n" "${CATALOG_DEPS[host.validation]}" "${CATALOG_DEPS[kvm.preflight]}" "${CATALOG_DEPS[vm.preflight]}"
   '
   [ "$status" -eq 0 ]
-  [ "$output" = "host.gaming|host.validation|kvm.validation" ]
+  [ "$output" = "host.observability|host.validation|kvm.validation" ]
 }
 
 @test 'module catalog encodes backup after validated domains' {
@@ -63,7 +63,7 @@
     REPO_ROOT="$PWD"
     module_catalog_load manifests/module-plan.conf
     module_catalog_validate
-    module_catalog_print_plan | grep -F "host.gaming"
+    module_catalog_print_plan | grep -F "host.observability"
     module_catalog_print_plan | grep -F "kvm.network"
   '
   [ "$status" -eq 0 ]
