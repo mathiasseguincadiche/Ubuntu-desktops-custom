@@ -52,6 +52,8 @@ setup() {
   [ "$status" -eq 0 ]
   run grep -F 'KVM_DNS_2=1.1.1.1' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
+  run grep -F 'KVM_DNS_ENFORCEMENT=implementation-pending-pretest' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
   run grep -F 'enforcement: implementation-pending-pretest' "$REPO_ROOT/manifests/virtualization/networks.yml"
   [ "$status" -eq 0 ]
 }
