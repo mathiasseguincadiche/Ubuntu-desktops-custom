@@ -14,6 +14,7 @@ setup() {
 @test "HOST preflight accepts frozen workstation fixture" {
   run bash -c "
     source '$REPO_ROOT/lib/constants.sh'
+    source '$REPO_ROOT/lib/common.sh'
     source '$REPO_ROOT/lib/logging.sh'
     source '$REPO_ROOT/lib/scope.sh'
     export ACTIVE_SCOPE=HOST LOG_FILE='$BATS_TEST_TMPDIR/log.txt'
@@ -26,6 +27,7 @@ setup() {
 @test "HOST preflight report inventories all critical domains" {
   run bash -c "
     source '$REPO_ROOT/lib/constants.sh'
+    source '$REPO_ROOT/lib/common.sh'
     source '$REPO_ROOT/lib/logging.sh'
     source '$REPO_ROOT/lib/scope.sh'
     export ACTIVE_SCOPE=HOST LOG_FILE='$BATS_TEST_TMPDIR/log.txt'
