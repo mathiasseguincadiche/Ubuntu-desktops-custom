@@ -53,6 +53,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "devops VM stable address uses DHCP reservation strategy" {
+  run grep -F 'VM_DEVOPS_ADDRESS_MODE=dhcp-reservation' "$REPO_ROOT/config/devops-vm.conf"
+  [ "$status" -eq 0 ]
+}
+
 @test "network contract requires dynamic route overlap detection" {
   run grep -F 'reject overlap between 192.168.50.0/24' "$REPO_ROOT/modules/virtualization/24_networks.sh"
   [ "$status" -eq 0 ]
