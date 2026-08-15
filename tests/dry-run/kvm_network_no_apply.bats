@@ -10,9 +10,10 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "architecture network module cannot apply changes" {
-  run bash -c "source '$REPO_ROOT/modules/virtualization/24_networks.sh'; module_apply"
+@test "architecture network contract cannot apply changes" {
+  run bash -c "source '$REPO_ROOT/lib/constants.sh'; source '$REPO_ROOT/lib/common.sh'; source '$REPO_ROOT/lib/logging.sh'; source '$REPO_ROOT/lib/scope.sh'; source '$REPO_ROOT/modules/virtualization/24_networks.sh'; CURRENT_SCOPE=KVM; kvm_network_apply"
   [ "$status" -eq 8 ]
+  [[ "$output" == *'BLOCKED'* ]]
 }
 
 @test "network module contains no active virsh network mutation yet" {
