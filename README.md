@@ -63,8 +63,12 @@ Point d'entrée : **`docs/DOCUMENTATION_INDEX.md`**.
 
 - `docs/INSTALLATION_GUIDE.md` — installation et première exécution de A à Z ;
 - `docs/RUNBOOK_OPERATIONS.md` — **runbook principal** : exploitation, maintenance, KVM, VM DevOps, backup, restore, disaster recovery, incidents et rollback ;
-- `docs/GUIDE_DEBUTANT_KVM_LIBVIRT.md` — guide CLI KVM/libvirt complet pour l'administration quotidienne ;
+- `docs/HOST_RUNBOOK.md` — exploitation du HOST Ubuntu Desktop, matériel, firmware, Intel Arc, desktop et gaming ;
+- `docs/GUIDE_DEBUTANT_KVM_LIBVIRT.md` — guide CLI KVM/libvirt pour l'administration quotidienne ;
 - `docs/NETWORK_KVM_NAT_CUSTOM.md` — contrat et dépannage réseau KVM ;
+- `docs/VM_DEVOPS_RUNBOOK.md` — exploitation de la VM Ubuntu Server DevOps et de sa pile DevOps/DevSecOps ;
+- `docs/BACKUP_RESTORE_RUNBOOK.md` — sauvegarde Restic, restauration granulaire, QCOW2 et disaster recovery ;
+- `docs/TROUBLESHOOTING.md` — dépannage transversal HOST/KVM/réseau/VM/DevOps/backup ;
 - `docs/ARCHITECTURE_TECHNIQUE.md` — architecture technique ;
 - `docs/HOST_PREFLIGHT_CONTRACT.md` — contrat de préflight HOST ;
 - `docs/MODULE_EXECUTION_PLAN.md` — ordre et dépendances des modules ;
