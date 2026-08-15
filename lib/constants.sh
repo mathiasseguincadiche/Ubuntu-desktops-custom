@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Public library constants are consumed by other sourced files.
+# shellcheck disable=SC2034
 readonly SCOPE_HOST='HOST'
 readonly SCOPE_KVM='KVM'
 readonly SCOPE_VM_DEVOPS='VM_DEVOPS'
