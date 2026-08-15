@@ -42,6 +42,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "DHCP reservation fixture stays inside configured pool" {
+  run grep -F "ip='192.168.50.150'" "$REPO_ROOT/tests/fixtures/network/dhcp-reservation-example.xml"
+  [ "$status" -eq 0 ]
+}
+
 @test "DNS policy uses Quad9 and Cloudflare and defers enforcement" {
   run grep -F 'KVM_DNS_1=9.9.9.9' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
