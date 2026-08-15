@@ -1,16 +1,51 @@
 vm:
   name: ubuntu-devops
   scope: VM_DEVOPS
+  os: ubuntu-server-26.04-lts
+  vcpu: 8
+  ram_mb: 16384
+  disk_gb: 200
   network: devops-nat
   network_policy: custom-nat-isolated
   stable_address: dhcp-reservation
 
 tools:
-  - git
-  - docker
-  - kubernetes
-  - terraform
-  - ansible
-  - aws-cli
-  - azure-cli
-  - devsecops
+  base:
+    - curl
+    - wget
+    - jq
+    - yq
+    - tmux
+    - python3
+    - pipx
+  scm:
+    - git
+  containers:
+    - docker-engine
+    - docker-buildx
+    - docker-compose-plugin
+  kubernetes:
+    - kubectl
+    - helm
+    - kind
+  iac:
+    - terraform
+    - ansible
+  cloud:
+    - aws-cli-v2
+    - azure-cli
+  devsecops:
+    - trivy
+    - gitleaks
+    - shellcheck
+    - hadolint
+    - checkov
+
+version_policy:
+  strategy: resolve-latest-supported-stable-at-pretest
+  sources: official-upstream-only
+  record_resolved_versions: true
+  checksum_or_signature_required: true
+
+host_policy:
+  devops_tooling_on_host: forbidden
