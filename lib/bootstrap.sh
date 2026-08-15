@@ -27,6 +27,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/retry.sh"
   # shellcheck source=lib/runner.sh
   source "$REPO_ROOT/lib/runner.sh"
+  # shellcheck source=lib/vm_remote.sh
+  source "$REPO_ROOT/lib/vm_remote.sh"
   # shellcheck source=lib/orchestrator.sh
   source "$REPO_ROOT/lib/orchestrator.sh"
   # shellcheck source=lib/module_catalog.sh
