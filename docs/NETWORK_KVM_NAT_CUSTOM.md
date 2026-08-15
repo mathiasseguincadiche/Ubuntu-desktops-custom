@@ -72,6 +72,10 @@ La création du réseau devra être transactionnelle : inventaire et sauvegarde 
 
 Le PRE-TEST final devra également démontrer la persistance après redémarrage : `devops-nat` en autostart, `virbr50` recréé correctement avec `.254`, DHCP/DNS fonctionnels, règles d'isolation présentes sans duplication, et VM configurées pour l'autostart uniquement si le profil utilisateur le demande. Le réseau ne sera pas considéré stable sur la seule base d'un test effectué juste après sa création.
 
+## Critère de réussite réseau
+
+Le verdict `KVM NETWORK READY` ne pourra être émis que si **tous** les postchecks ci-dessus réussissent. Un accès Internet fonctionnel ne suffit pas : l'isolation du LAN, la communication HOST↔VM, la stabilité de l'adressage et la persistance font partie du même contrat.
+
 ## Gate de sécurité
 
 Ce document et le XML sont déclaratifs. Aucun réseau n'est créé ou modifié tant que `REAL_MACHINE_APPROVED=false` et que le pré-test n'est pas validé.
