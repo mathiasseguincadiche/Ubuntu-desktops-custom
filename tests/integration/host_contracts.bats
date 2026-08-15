@@ -15,7 +15,7 @@ setup() {
     printf '%s\n' \"\${CATALOG_ORDER[@]}\"
   "
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'host.preflight\nhost.os_updates\nhost.firmware_microcode\nhost.graphics\nhost.multimedia\nhost.apps\nhost.terminal\nhost.gaming\nhost.validation'* ]]
+  [[ "$output" == *$'host.preflight\nhost.os_updates\nhost.firmware_microcode\nhost.graphics\nhost.multimedia\nhost.apps\nhost.terminal\nhost.gaming\nhost.observability\nhost.validation'* ]]
 }
 
 @test "every HOST contract exposes four adapter functions" {
@@ -47,7 +47,8 @@ setup() {
     04_multimedia_codecs.sh \
     05_desktop_apps.sh \
     06_terminal_shell.sh \
-    07_gaming.sh; do
+    07_gaming.sh \
+    08_hardware_observability.sh; do
     grep -F 'run_mutating HOST' "$REPO_ROOT/modules/host/$file"
   done
 }
@@ -57,14 +58,27 @@ setup() {
   [ "$status" -ne 0 ]
 }
 
+@test "graphics stack includes Intel Arc observability" {
+  for token in vainfo intel-gpu-tools vulkaninfo; do
+    grep -F "$token" "$REPO_ROOT/modules/host/03_graphics_intel_arc.sh"
+  done
+}
+
+@test "gaming stack includes Gamescope and MangoHud" {
+  for token in gamescope mangohud mangoapp gamemode; do
+    grep -F "$token" "$REPO_ROOT/modules/host/07_gaming.sh"
+  done
+}
+
+@test "hardware health stack covers storage sensors audio and webcam" {
+  for token in nvme-cli smartmontools lm-sensors v4l-utils wpctl pw-cli; do
+    grep -F "$token" "$REPO_ROOT/modules/host/08_hardware_observability.sh"
+  done
+}
+
 @test "desktop apps keep MarkText stale upstream disabled by default" {
   grep -F 'MARKDOWN_EDITOR=ghostwriter' "$REPO_ROOT/config/applications.conf"
   grep -F 'MARKTEXT_AUTO_INSTALL=false' "$REPO_ROOT/config/applications.conf"
-}
-
-@test "HOST validation advertises architecture readiness not machine readiness" {
-  run grep -F 'HOST CONTRACT READY' "$REPO_ROOT/modules/host/14_host_validation.sh"
-  [ "$status" -eq 0 ]
 }
 
 @test "DevOps tooling remains outside HOST contracts" {

@@ -9,9 +9,10 @@ applications:
   - remmina
   - obs-studio
   - vlc
-  - marktext
+  - ghostwriter
   - drawio
   - pdf-arranger
   - xournalpp
   - libreoffice
   - onlyoffice
+  - gnome-extension-manager
