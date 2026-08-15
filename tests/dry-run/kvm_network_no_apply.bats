@@ -15,8 +15,8 @@ setup() {
   [ "$status" -eq 8 ]
 }
 
-@test "network module contains no virsh net-define apply command yet" {
-  run grep -E '^[[:space:]]*virsh([[:space:]].*)?net-define' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+@test "network module contains no active virsh network mutation yet" {
+  run grep -E '^[[:space:]]*virsh([[:space:]].*)?(net-define|net-start|net-autostart|net-update|net-destroy|net-undefine)([[:space:]]|$)' "$REPO_ROOT/modules/virtualization/24_networks.sh"
   [ "$status" -ne 0 ]
 }
 
