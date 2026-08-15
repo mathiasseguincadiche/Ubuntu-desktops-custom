@@ -76,6 +76,18 @@ Le PRE-TEST final devra également démontrer la persistance après redémarrage
 
 Le verdict `KVM NETWORK READY` ne pourra être émis que si **tous** les postchecks ci-dessus réussissent. Un accès Internet fonctionnel ne suffit pas : l'isolation du LAN, la communication HOST↔VM, la stabilité de l'adressage et la persistance font partie du même contrat.
 
+## Ordre de mise en œuvre futur
+
+1. PRECHECK read-only des routes/interfaces/firewall/libvirt.
+2. DRY-RUN et plan détaillé.
+3. Snapshot logique de l'état pertinent.
+4. Définition du réseau libvirt.
+5. Application ciblée de l'isolation.
+6. Tests de connectivité/isolation.
+7. Vérification d'idempotence.
+8. Test de persistance/reboot en environnement de pré-test.
+9. Seulement ensuite, éligibilité au verdict `KVM NETWORK READY`.
+
 ## Gate de sécurité
 
 Ce document et le XML sont déclaratifs. Aucun réseau n'est créé ou modifié tant que `REAL_MACHINE_APPROVED=false` et que le pré-test n'est pas validé.
