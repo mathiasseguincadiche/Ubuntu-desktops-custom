@@ -29,6 +29,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/runner.sh"
   # shellcheck source=lib/orchestrator.sh
   source "$REPO_ROOT/lib/orchestrator.sh"
+  # shellcheck source=lib/module_catalog.sh
+  source "$REPO_ROOT/lib/module_catalog.sh"
 
   DRY_RUN="${DRY_RUN:-true}"
   ORCH_RESUME="${ORCH_RESUME:-false}"
@@ -45,6 +47,7 @@ engine_bootstrap() {
   log_init
   state_init
   orchestrator_reset
+  module_catalog_reset
 
   log_info ENGINE "bootstrap run_id=$RUN_ID dry_run=$DRY_RUN resume=$ORCH_RESUME real_machine_approved=${REAL_MACHINE_APPROVED:-false}"
 }
