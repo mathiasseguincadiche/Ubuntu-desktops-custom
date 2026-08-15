@@ -1,0 +1,2 @@
+03:00.0 VGA compatible controller [0300]: Intel Corporation Arc B580 [8086:e20b]
+04:00.0 Network controller [0280]: MediaTek Inc. Device [14c3:7925]
