@@ -109,6 +109,25 @@ orchestrator_report() {
   printf '%s\n' "$report"
 }
 
+orchestrator_run_scope() {
+  local wanted_scope="$1" id rc=0 matched=0
+  scope_valid "$wanted_scope" || return "$EXIT_INVALID_ARGUMENT"
+  for id in "${ORCH_ORDER[@]}"; do
+    [[ "${ORCH_SCOPE[$id]}" == "$wanted_scope" ]] || continue
+    matched=1
+    if orchestrator_run_module "$id"; then
+      :
+    else
+      rc=$?
+      log_error ENGINE "scope orchestration stopped scope=$wanted_scope module=$id rc=$rc"
+      orchestrator_report >/dev/null
+      return "$rc"
+    fi
+  done
+  (( matched == 1 )) || return "$EXIT_INVALID_ARGUMENT"
+  orchestrator_report >/dev/null
+}
+
 orchestrator_run_all() {
   local id rc=0
   for id in "${ORCH_ORDER[@]}"; do
