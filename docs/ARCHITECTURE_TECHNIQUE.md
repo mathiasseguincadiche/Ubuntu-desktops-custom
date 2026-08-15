@@ -36,7 +36,7 @@ Le NAT seul n'est pas une preuve d'isolation du LAN. L'implémentation devra app
 
 ## Validation réseau obligatoire
 
-Le futur PRE-TEST doit prouver HOST↔VM, VM↔VM, VM→Internet, DNS, blocage VM→LAN physique, absence d'exposition entrante inattendue, préservation du firewall existant, idempotence des règles et persistance après redémarrage.
+Le futur PRE-TEST doit prouver HOST↔VM, VM↔VM, VM→Internet, DNS, blocage VM→LAN physique, absence d'exposition entrante inattendue, préservation du firewall existant, idempotence des règles et persistance après redémarrage. Le sous-verdict obligatoire est `KVM NETWORK READY`.
 
 ## Gate
 
