@@ -15,6 +15,7 @@ PRECHECK CONTRACT:
 - identify physical LAN networks dynamically; do not hard-code them
 - validate qemu:///system and planned virbr50 availability
 - validate that DHCP range and gateway do not conflict
+- snapshot relevant existing libvirt/firewall state for targeted rollback
 EOF
 }
 
@@ -32,6 +33,7 @@ PLAN ONLY:
 - preserve the existing HOST firewall; never flush nftables/iptables globally
 - block inbound LAN/Internet -> VM by default
 - run connectivity and isolation postchecks
+- rollback only project-owned network/firewall changes if validation fails
 EOF
 }
 
