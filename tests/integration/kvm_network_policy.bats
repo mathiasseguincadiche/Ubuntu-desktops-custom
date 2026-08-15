@@ -58,6 +58,14 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'dhcp4: true' "$REPO_ROOT/virtualization/cloud-init/network-config.tpl"
 }
 
+@test "existing devops-nat is fully validated before mutation" {
+  grep -F 'kvm_network_validate_existing()' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  grep -F "<forward mode='nat'" "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  grep -F 'KVM_DHCP_START' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  grep -F 'KVM_DNS_1' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  grep -F 'kvm_network_validate_existing || return "$?"' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+}
+
 @test "network apply uses secure runner and fail-closed order" {
   grep -F 'run_mutating KVM sudo systemctl enable --now ubuntu-desktops-custom-kvm-guard.service' "$REPO_ROOT/modules/virtualization/24_networks.sh"
   grep -F 'run_mutating KVM sudo virsh --connect "$uri" net-define "$xml"' "$REPO_ROOT/modules/virtualization/24_networks.sh"
@@ -69,6 +77,8 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'ExecStart=/usr/local/libexec/ubuntu-desktops-custom/kvm-network-guard apply' "$REPO_ROOT/virtualization/systemd/ubuntu-desktops-custom-kvm-guard.service"
 }
 
-@test "real machine gate remains closed" {
+@test "real machine runtime approval is never static config" {
   grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
+  run grep -R -n -E '^REAL_MACHINE_APPROVED=true$' "$REPO_ROOT/config"
+  [ "$status" -ne 0 ]
 }
