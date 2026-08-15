@@ -28,9 +28,10 @@ DEBIAN_FRONTEND=noninteractive apt-get -y install helm
 
 kind_version="$(curl -fsSL https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | jq -r '.tag_name')"
 [[ "$kind_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { printf '%s\n' 'ERROR: invalid kind release tag.' >&2; exit 3; }
-curl -fsSL "https://kind.sigs.k8s.io/dl/${kind_version}/kind-linux-amd64" -o "$tmp/kind"
-curl -fsSL "https://kind.sigs.k8s.io/dl/${kind_version}/kind-linux-amd64.sha256" -o "$tmp/kind.sha256"
-printf '%s  %s\n' "$(cat "$tmp/kind.sha256")" "$tmp/kind" | sha256sum --check --status
+kind_asset='kind-linux-amd64'
+curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/${kind_version}/${kind_asset}" -o "$tmp/kind"
+curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/${kind_version}/${kind_asset}.sha256sum" -o "$tmp/kind.sha256sum"
+printf '%s  %s\n' "$(cat "$tmp/kind.sha256sum")" "$tmp/kind" | sha256sum --check --status
 install -m 0755 "$tmp/kind" /usr/local/bin/kind
 
 kubectl version --client
