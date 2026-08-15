@@ -33,6 +33,16 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "physical LAN is discovered dynamically" {
+  run grep -F 'KVM_PHYSICAL_LAN_DETECTION=dynamic-host-routes' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+}
+
+@test "existing host firewall must be preserved" {
+  run grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+}
+
 @test "inbound forwarding is disabled by default" {
   run grep -F 'inbound_port_forwarding: disabled' "$REPO_ROOT/manifests/virtualization/networks.yml"
   [ "$status" -eq 0 ]
