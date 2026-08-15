@@ -1,0 +1,8 @@
+# Synthetic pre-existing host firewall fixture.
+# Future tests must prove project-owned KVM isolation changes do not remove it.
+table inet host_firewall {
+  chain input {
+    type filter hook input priority 0; policy drop;
+    ct state established,related accept
+  }
+}
