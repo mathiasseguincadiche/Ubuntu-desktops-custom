@@ -31,7 +31,9 @@ kind_version="$(curl -fsSL https://api.github.com/repos/kubernetes-sigs/kind/rel
 kind_asset='kind-linux-amd64'
 curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/${kind_version}/${kind_asset}" -o "$tmp/kind"
 curl -fsSL "https://github.com/kubernetes-sigs/kind/releases/download/${kind_version}/${kind_asset}.sha256sum" -o "$tmp/kind.sha256sum"
-printf '%s  %s\n' "$(cat "$tmp/kind.sha256sum")" "$tmp/kind" | sha256sum --check --status
+kind_expected="$(awk 'NF {print $1; exit}' "$tmp/kind.sha256sum")"
+[[ "$kind_expected" =~ ^[0-9a-fA-F]{64}$ ]] || { printf '%s\n' 'ERROR: invalid kind SHA256 digest.' >&2; exit 4; }
+printf '%s  %s\n' "$kind_expected" "$tmp/kind" | sha256sum --check --status
 install -m 0755 "$tmp/kind" /usr/local/bin/kind
 
 kubectl version --client
