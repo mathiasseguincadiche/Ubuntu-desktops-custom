@@ -1,0 +1,8 @@
+schema: 1
+family: ubuntu
+entries:
+  - release: '26.04'
+    edition: server
+    architecture: amd64
+    source: official
+    checksum_required: true

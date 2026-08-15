@@ -1,0 +1,13 @@
+name: non-regression
+on: [push, pull_request]
+jobs:
+  boundaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Host DevOps isolation
+        run: |
+          ! grep -R -nE 'apt( |-)install.*(docker|kubectl|terraform|ansible|azure-cli|aws)' modules/host || exit 1
+      - name: Dangerous-pattern review gate
+        run: |
+          ! grep -R -nE '(curl|wget).*[|][[:space:]]*(bash|sh)|apt-key|iptables[[:space:]]+-F|nft[[:space:]]+flush[[:space:]]+ruleset' -- '*.sh' modules lib scripts 2>/dev/null || exit 1

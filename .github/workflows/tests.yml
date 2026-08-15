@@ -1,0 +1,9 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Safety gate
+        run: test "$(grep '^REAL_MACHINE_APPROVED=' config/workstation.conf)" = 'REAL_MACHINE_APPROVED=false'

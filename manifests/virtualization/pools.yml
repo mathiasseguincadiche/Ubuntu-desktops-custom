@@ -1,0 +1,7 @@
+schema: 1
+scope: KVM
+pools:
+  - name: devops-vms
+    path: /data/virtualization/disks
+  - name: iso
+    path: /data/virtualization/iso

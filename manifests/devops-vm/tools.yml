@@ -1,0 +1,24 @@
+schema: 1
+scope: VM_DEVOPS
+tools:
+  - git
+  - github-cli
+  - docker
+  - kubectl
+  - helm
+  - kind
+  - terraform
+  - opentofu
+  - ansible
+  - packer
+  - aws-cli-v2
+  - azure-cli
+  - trivy
+  - syft
+  - grype
+  - cosign
+  - hadolint
+  - shellcheck
+  - yamllint
+  - actionlint
+  - pre-commit

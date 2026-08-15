@@ -1,0 +1,9 @@
+name: shell-quality
+on: [push, pull_request]
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax
+        run: find . -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n

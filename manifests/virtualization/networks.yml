@@ -1,0 +1,6 @@
+schema: 1
+scope: KVM
+networks:
+  - name: default
+    mode: nat
+    required: true
