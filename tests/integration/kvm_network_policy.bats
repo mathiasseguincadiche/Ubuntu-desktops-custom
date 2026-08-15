@@ -74,6 +74,7 @@ setup() {
 @test "existing host firewall must be preserved" {
   run grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
+  [ -f "$REPO_ROOT/tests/fixtures/network/firewall-existing.txt" ]
 }
 
 @test "inbound forwarding is disabled by default" {
