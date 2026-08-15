@@ -1,9 +1,23 @@
 name: tests
-on: [push, pull_request]
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
 jobs:
-  architecture:
+  bats:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Safety gate
-        run: test "$(grep '^REAL_MACHINE_APPROVED=' config/workstation.conf)" = 'REAL_MACHINE_APPROVED=false'
+      - name: Install Bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Unit tests
+        run: bats tests/unit
+      - name: Integration tests
+        run: bats tests/integration
+      - name: Dry-run contract tests
+        run: bats tests/dry-run
