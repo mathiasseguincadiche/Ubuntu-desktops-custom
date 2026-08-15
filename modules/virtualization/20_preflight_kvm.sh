@@ -19,5 +19,6 @@ READ-ONLY KVM PREFLIGHT CONTRACT:
 - inventory firewall backend/state without modifying it
 - verify required commands when implementation dependencies are installed
 - produce BLOCKED / MANUAL_ACTION_REQUIRED on ambiguous network overlap
+- fail closed if physical LAN boundaries cannot be determined reliably
 EOF
 }
