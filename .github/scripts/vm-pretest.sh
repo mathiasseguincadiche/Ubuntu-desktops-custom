@@ -135,7 +135,7 @@ ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'sudo cloud-init status --wait --long'
 report 'Install guest bootstrap packages with explicit retry outside cloud-init'
 ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'set -Eeuo pipefail
   for attempt in 1 2 3 4 5; do
-    if sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl bind9-dnsutils git qemu-guest-agent; then
+    if sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl bind9-dnsutils git jq qemu-guest-agent; then
       exit 0
     fi
     echo "guest apt bootstrap attempt $attempt failed" >&2
@@ -161,7 +161,11 @@ ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" 'chmod +x /tmp/ubuntu-desktops-custom-
 report '[8/10] Execute real DevOps installers inside Ubuntu 26.04 VM'
 for installer in install_iac.sh install_docker.sh install_kubernetes.sh install_cloud_clis.sh install_devsecops.sh; do
   report "RUN: $installer"
-  ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" "sudo /tmp/ubuntu-desktops-custom-devops-vm/$installer"
+  if [[ "$installer" == 'install_docker.sh' ]]; then
+    ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" "sudo /tmp/ubuntu-desktops-custom-devops-vm/$installer $VM_USER"
+  else
+    ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" "sudo /tmp/ubuntu-desktops-custom-devops-vm/$installer"
+  fi
 done
 
 report '[9/10] Runtime smoke tests'
