@@ -22,9 +22,10 @@ module_plan() {
   cat <<'EOF'
 PLAN ONLY:
 - validate libvirt qemu:///system
-- define devops-nat with virbr50 and gateway 192.168.50.254
+- define devops-nat with virbr50 and HOST/gateway 192.168.50.254
 - configure DHCP 192.168.50.100-200
-- configure DNS forwarders 9.9.9.9 and 1.1.1.1
+- configure DNS contract 9.9.9.9 and 1.1.1.1
+- keep guests as DHCP clients; stable VM identities use conflict-checked DHCP reservations
 - preserve HOST <-> VM and VM <-> VM communication
 - allow VM -> Internet through NAT
 - explicitly block VM -> dynamically detected physical LAN networks
