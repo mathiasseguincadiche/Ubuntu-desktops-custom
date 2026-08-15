@@ -1,22 +1,61 @@
 # Ubuntu-desktops-custom
 
-Architecture reproductible d'une workstation Ubuntu Desktop 26.04 LTS orientée desktop, gaming, virtualisation KVM/libvirt CLI-first et VM Ubuntu Server DevOps.
+Workstation-as-code pour **Ubuntu Desktop 26.04 LTS** : configuration HOST, virtualisation KVM/libvirt CLI-first, VM Ubuntu Server 26.04 DevOps et sauvegarde/restauration.
 
-> **Gate actuelle : architecture/pré-test uniquement.** `REAL_MACHINE_APPROVED=false`. Aucun script du projet ne doit modifier une workstation réelle avant validation complète du pré-test.
+Version actuelle : **1.0.0**
 
-## Domaines
+## Périmètre
 
-- **HOST** — Ubuntu Desktop, matériel, pilotes/firmware, applications, terminal, multimédia et gaming.
-- **KVM** — QEMU/libvirt, UEFI/TPM, pools, catalogue OS/ISO et réseau NAT custom.
-- **VM_DEVOPS** — Ubuntu Server 26.04 LTS et pile Git/Docker/Kubernetes/Terraform/Ansible/Cloud/DevSecOps.
-- **BACKUP** — sauvegarde, vérification, restauration et disaster recovery.
+- **HOST** — Ubuntu Desktop 26.04, mises à jour, firmware/microcode AMD, Intel Arc, codecs/multimédia, applications, terminal Bash/Ptyxis, SSH, gaming et validation.
+- **KVM** — QEMU/libvirt, `virsh`, OVMF/UEFI, TPM, pools/volumes, catalogue Ubuntu vérifié, réseau NAT custom, SSH et validation.
+- **VM_DEVOPS** — Ubuntu Server 26.04 LTS, cloud-init, SSH, Git, Terraform, Ansible, Docker Engine/Buildx/Compose, kubectl, Helm, kind, AWS CLI, Azure CLI et DevSecOps.
+- **BACKUP/RESTORE** — Restic chiffré, inventaire, intégrité, rétention, restauration granulaire et disaster recovery.
 
-## Réseau KVM figé
+## Réseau KVM
 
-`devops-nat` est le réseau virtuel KVM dédié `192.168.50.0/24`. Le HOST y participe via `virbr50` / `192.168.50.254`; DHCP `192.168.50.100-200`; DNS `9.9.9.9` et `1.1.1.1`. Les VM accèdent à Internet par NAT et communiquent avec l'hôte et entre elles ; l'accès initié vers le LAN physique de la workstation est bloqué par politique. Aucun port-forward entrant n'est activé par défaut. Le réseau doit survivre au redémarrage et ne pourra être déclaré prêt qu'après preuve complète de connectivité et d'isolation.
+`devops-nat` utilise `192.168.50.0/24` avec :
+
+- bridge HOST `virbr50` : `192.168.50.254` ;
+- DHCP : `192.168.50.100-200` ;
+- DNS : `9.9.9.9` et `1.1.1.1` ;
+- HOST ↔ VM : autorisé ;
+- VM ↔ VM : autorisé ;
+- VM → Internet : autorisé ;
+- VM → LAN physique : bloqué ;
+- LAN → VM : bloqué ;
+- Internet → VM : bloqué par défaut.
 
 Voir `docs/NETWORK_KVM_NAT_CUSTOM.md`.
 
-## État du projet
+## Sécurité d'exécution
 
-Le dépôt contient actuellement le squelette architectural, les contrats et les tests de garde. Les modules d'installation réelle restent volontairement bloqués.
+Le chemin d'exécution réelle existe, mais reste **fail-closed** : `REAL_MACHINE_APPROVED=false` est la valeur statique par défaut. `./install.sh --apply` exige notamment un TTY interactif, un diagnostic réel valide, un dry-run réussi sur le même commit, un backup Restic externe vérifié et récent, une confirmation globale exacte et des confirmations séparées pour HOST, KVM, VM_DEVOPS et BACKUP.
+
+Commandes principales :
+
+```bash
+./diagnostic.sh
+./install.sh --dry-run
+./menu.sh
+```
+
+Ne lancer `./install.sh --apply` qu'après validation des gates et du backup pré-APPLY.
+
+## Validation GitHub
+
+La V1.0.0 a passé :
+
+- tests unitaires ;
+- tests d'intégration ;
+- contrats dry-run ;
+- ShellCheck ;
+- non-régression ;
+- **pré-test réel Ubuntu Server 26.04 sous KVM**, incluant installation de la pile DevOps/DevSecOps, smoke tests Docker et test de persistance après reboot.
+
+Dernier verdict de référence du laboratoire VM : `REAL UBUNTU 26.04 VM PRE-TEST PASS`.
+
+## Documentation
+
+- `docs/V1_EXECUTION_CANDIDATE.md` — procédure protégée avant exécution réelle ;
+- `docs/NETWORK_KVM_NAT_CUSTOM.md` — contrat réseau KVM ;
+- `docs/` — architecture, exploitation et validations complémentaires.
