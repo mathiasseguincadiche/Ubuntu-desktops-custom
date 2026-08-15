@@ -42,3 +42,9 @@ setup() {
   run grep -F 'VM_DEVOPS_NETWORK=devops-nat' "$REPO_ROOT/config/devops-vm.conf"
   [ "$status" -eq 0 ]
 }
+
+@test "network apply remains blocked during architecture phase" {
+  run bash -c "source '$REPO_ROOT/modules/virtualization/24_networks.sh'; module_apply"
+  [ "$status" -eq 8 ]
+  [[ "$output" == *"BLOCKED"* ]]
+}
