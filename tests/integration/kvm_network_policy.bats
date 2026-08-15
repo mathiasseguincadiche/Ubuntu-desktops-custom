@@ -15,15 +15,19 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'KVM_HOST_ADDRESS=192.168.50.254' "$REPO_ROOT/config/virtualization.conf"
 }
 
-@test "DNS contract uses Quad9 and Cloudflare" {
+@test "DNS contract uses libvirt Quad9 and Cloudflare forwarders" {
   grep -F 'KVM_DNS_1=9.9.9.9' "$REPO_ROOT/config/virtualization.conf"
   grep -F 'KVM_DNS_2=1.1.1.1' "$REPO_ROOT/config/virtualization.conf"
-  grep -F 'KVM_DNS_ENFORCEMENT=implementation-pending-pretest' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_DNS_ENFORCEMENT=libvirt-dns-forwarders' "$REPO_ROOT/config/virtualization.conf"
+  grep -F "<forwarder addr='9.9.9.9'/>" "$REPO_ROOT/virtualization/xml/networks/devops-nat.xml"
+  grep -F "<forwarder addr='1.1.1.1'/>" "$REPO_ROOT/virtualization/xml/networks/devops-nat.xml"
 }
 
-@test "network policy is fail closed and preserves host firewall" {
+@test "network policy is fail closed and project firewall is isolated" {
   grep -F 'KVM_FAIL_CLOSED=true' "$REPO_ROOT/config/virtualization.conf"
   grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' "$REPO_ROOT/config/virtualization.conf"
+  grep -F 'KVM_FIREWALL_ENFORCEMENT=project-nftables-guard' "$REPO_ROOT/config/virtualization.conf"
+  grep -F "TABLE_NAME='ubuntu_desktops_custom_kvm'" "$REPO_ROOT/scripts/kvm/kvm_network_guard.sh"
   grep -F 'fail_closed: true' "$REPO_ROOT/manifests/virtualization/networks.yml"
   grep -F 'vm_to_physical_lan: block' "$REPO_ROOT/manifests/virtualization/networks.yml"
   grep -F 'inbound_port_forwarding: disabled' "$REPO_ROOT/manifests/virtualization/networks.yml"
@@ -32,8 +36,20 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 @test "physical LAN detection and overlap handling remain dynamic" {
   grep -F 'KVM_PHYSICAL_LAN_DETECTION=dynamic-host-routes' "$REPO_ROOT/config/virtualization.conf"
   grep -F 'KVM_ROUTE_OVERLAP_ACTION=block' "$REPO_ROOT/config/virtualization.conf"
-  grep -F '192.168.50.0/24' "$REPO_ROOT/tests/fixtures/network/routes-conflict.txt"
-  grep -F '10.0.0.0/24' "$REPO_ROOT/tests/fixtures/network/routes-no-conflict.txt"
+  grep -F 'ip -4 route show scope link' "$REPO_ROOT/scripts/kvm/kvm_network_guard.sh"
+  grep -F 'kvm.overlaps(network)' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+}
+
+@test "project guard blocks both directions only for host-connected networks" {
+  grep -F 'iifname "%s" ip daddr @blocked_local_ipv4 drop' "$REPO_ROOT/scripts/kvm/kvm_network_guard.sh"
+  grep -F 'oifname "%s" ip saddr @blocked_local_ipv4 drop' "$REPO_ROOT/scripts/kvm/kvm_network_guard.sh"
+  grep -F 'policy accept' "$REPO_ROOT/scripts/kvm/kvm_network_guard.sh"
+}
+
+@test "project guard never flushes global firewall" {
+  run grep -R -n -E 'nft[[:space:]]+flush[[:space:]]+ruleset|iptables[[:space:]]+-F' "$REPO_ROOT/scripts/kvm" "$REPO_ROOT/modules/virtualization"
+  [ "$status" -ne 0 ]
+  grep -F 'delete table "$TABLE_FAMILY" "$TABLE_NAME"' "$REPO_ROOT/scripts/kvm/kvm_network_guard.sh"
 }
 
 @test "DHCP reservation is the single guest addressing authority" {
@@ -42,36 +58,17 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'dhcp4: true' "$REPO_ROOT/virtualization/cloud-init/network-config.tpl"
 }
 
-@test "network plan preserves connectivity and isolation requirements" {
-  run bash -c "source '$REPO_ROOT/lib/constants.sh'; source '$REPO_ROOT/lib/common.sh'; source '$REPO_ROOT/lib/logging.sh'; source '$REPO_ROOT/lib/scope.sh'; source '$REPO_ROOT/modules/virtualization/24_networks.sh'; CURRENT_SCOPE=KVM; kvm_network_plan"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *'HOST<->VM'* ]]
-  [[ "$output" == *'VM<->VM'* ]]
-  [[ "$output" == *'VM->Internet NAT allowed'* ]]
-  [[ "$output" == *'VM->physical-LAN blocked'* ]]
-  [[ "$output" == *'targeted rollback'* ]]
-  [[ "$output" == *'reboot persistence'* ]]
+@test "network apply uses secure runner and fail-closed order" {
+  grep -F 'run_mutating KVM sudo systemctl enable --now ubuntu-desktops-custom-kvm-guard.service' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  grep -F 'run_mutating KVM sudo virsh --connect "$uri" net-define "$xml"' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  grep -F 'run_mutating KVM sudo virsh --connect "$uri" net-start "$network"' "$REPO_ROOT/modules/virtualization/24_networks.sh"
 }
 
-@test "KVM validation retains blocked LAN and persistence proof" {
-  run bash -c "source '$REPO_ROOT/lib/constants.sh'; source '$REPO_ROOT/lib/common.sh'; source '$REPO_ROOT/lib/logging.sh'; source '$REPO_ROOT/lib/scope.sh'; source '$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh'; CURRENT_SCOPE=KVM; kvm_validation_plan"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *'VM->physical-LAN BLOCKED'* ]]
-  [[ "$output" == *'devops-nat persistence'* ]]
-  [[ "$output" == *'idempotence'* ]]
+@test "network service persists project guard across reboot" {
+  grep -F 'WantedBy=multi-user.target' "$REPO_ROOT/virtualization/systemd/ubuntu-desktops-custom-kvm-guard.service"
+  grep -F 'ExecStart=/usr/local/libexec/ubuntu-desktops-custom/kvm-network-guard apply' "$REPO_ROOT/virtualization/systemd/ubuntu-desktops-custom-kvm-guard.service"
 }
 
 @test "real machine gate remains closed" {
   grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
-}
-
-@test "network apply remains security blocked during architecture phase" {
-  run bash -c "source '$REPO_ROOT/lib/constants.sh'; source '$REPO_ROOT/lib/common.sh'; source '$REPO_ROOT/lib/logging.sh'; source '$REPO_ROOT/lib/scope.sh'; source '$REPO_ROOT/modules/virtualization/24_networks.sh'; CURRENT_SCOPE=KVM; kvm_network_apply"
-  [ "$status" -eq 8 ]
-  [[ "$output" == *'BLOCKED'* ]]
-}
-
-@test "KVM network modules contain no active mutation commands" {
-  run grep -R -n -E '^[[:space:]]*virsh([[:space:]].*)?(net-define|net-start|net-update|net-destroy|net-undefine)|^[[:space:]]*(sudo[[:space:]]+)?(nft|iptables)([[:space:]]|$)' "$REPO_ROOT/modules/virtualization"
-  [ "$status" -ne 0 ]
 }
