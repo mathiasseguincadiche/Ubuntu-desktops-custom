@@ -113,6 +113,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "validation contract requires reboot persistence" {
+  run grep -F 'reboot persistence validated' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
+  [ "$status" -eq 0 ]
+}
+
 @test "real machine gate remains closed" {
   run grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
