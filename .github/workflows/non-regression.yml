@@ -14,7 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Real-machine gate must remain closed
-        run: grep -R --line-number '^REAL_MACHINE_APPROVED=false$' config
+        run: |
+          grep -F 'REAL_MACHINE_APPROVED=false' config/virtualization.conf
+          if grep -R -n -E '^REAL_MACHINE_APPROVED=(true|1|yes)$' config; then
+            echo 'Real-machine gate opened unexpectedly.' >&2
+            exit 1
+          fi
       - name: KVM custom NAT contract
         run: |
           grep -F 'KVM_NETWORK_CIDR=192.168.50.0/24' config/virtualization.conf
