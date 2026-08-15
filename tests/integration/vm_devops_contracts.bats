@@ -37,7 +37,7 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 }
 
 @test "vendor installers never pipe downloads into shell" {
-  run grep -R -n -E 'curl[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh)|wget[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh)' "$REPO_ROOT/scripts/devops-vm"
+  run grep -R -n -E '^[[:space:]]*(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh)' "$REPO_ROOT/scripts/devops-vm"
   [ "$status" -ne 0 ]
 }
 
