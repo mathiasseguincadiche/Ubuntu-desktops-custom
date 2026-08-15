@@ -40,7 +40,7 @@ setup() {
 
 @test "implemented HOST package mutations use secure runner" {
   grep -F 'run_mutating HOST sudo apt-get update' "$REPO_ROOT/modules/host/01_os_updates.sh"
-  grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y full-upgrade' "$REPO_ROOT/modules/host/01_os_updates.sh"
+  grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade' "$REPO_ROOT/modules/host/01_os_updates.sh"
   grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install' "$REPO_ROOT/modules/host/02_firmware_microcode.sh"
   grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install' "$REPO_ROOT/modules/host/03_graphics_intel_arc.sh"
 }
