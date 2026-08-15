@@ -67,6 +67,10 @@ Le module réseau ne pourra être déclaré `SUCCESS` qu'après validation de :
 
 La création du réseau devra être transactionnelle : inventaire et sauvegarde de l'état libvirt/firewall avant action, création/validation de `devops-nat`, puis rollback ciblé uniquement des objets/règles créés par le projet si un postcheck échoue. Le rollback ne doit jamais supprimer ou réinitialiser des règles firewall préexistantes qui n'appartiennent pas au projet.
 
+## Redémarrage et persistance
+
+Le PRE-TEST final devra également démontrer la persistance après redémarrage : `devops-nat` en autostart, `virbr50` recréé correctement avec `.254`, DHCP/DNS fonctionnels, règles d'isolation présentes sans duplication, et VM configurées pour l'autostart uniquement si le profil utilisateur le demande. Le réseau ne sera pas considéré stable sur la seule base d'un test effectué juste après sa création.
+
 ## Gate de sécurité
 
 Ce document et le XML sont déclaratifs. Aucun réseau n'est créé ou modifié tant que `REAL_MACHINE_APPROVED=false` et que le pré-test n'est pas validé.
