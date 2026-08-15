@@ -6,6 +6,7 @@ components:
   - gamescope
   - gamemode
   - mangohud
+  - mangoapp
   - vulkan-amd64
   - vulkan-i386
   - steam-input
