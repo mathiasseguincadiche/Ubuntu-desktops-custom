@@ -37,6 +37,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/module_adapter.sh"
   # shellcheck source=lib/pretest_audit.sh
   source "$REPO_ROOT/lib/pretest_audit.sh"
+  # shellcheck source=lib/apply_gate.sh
+  source "$REPO_ROOT/lib/apply_gate.sh"
 
   DRY_RUN="${DRY_RUN:-true}"
   ORCH_RESUME="${ORCH_RESUME:-false}"
@@ -55,5 +57,5 @@ engine_bootstrap() {
   orchestrator_reset
   module_catalog_reset
 
-  log_info ENGINE "bootstrap run_id=$RUN_ID dry_run=$DRY_RUN resume=$ORCH_RESUME real_machine_approved=${REAL_MACHINE_APPROVED:-false}"
+  log_info ENGINE "bootstrap run_id=$RUN_ID dry_run=$DRY_RUN resume=$ORCH_RESUME real_machine_approved=${REAL_MACHINE_APPROVED:-false} real_apply_feature=${REAL_APPLY_FEATURE_ENABLED:-false}"
 }
