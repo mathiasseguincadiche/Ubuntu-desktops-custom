@@ -75,6 +75,82 @@ pretest_check_installer_gate() {
   fi
 }
 
+pretest_check_kvm_network_contract() {
+  local cfg="$REPO_ROOT/config/virtualization.conf" failed=0 token
+  for token in \
+    'KVM_NETWORK_CIDR=192.168.50.0/24' \
+    'KVM_GATEWAY=192.168.50.254' \
+    'KVM_DHCP_START=192.168.50.100' \
+    'KVM_DHCP_END=192.168.50.200' \
+    'KVM_DNS_1=9.9.9.9' \
+    'KVM_DNS_2=1.1.1.1' \
+    'KVM_BLOCK_PHYSICAL_LAN=true' \
+    'KVM_ALLOW_VM_INTERNET=true' \
+    'KVM_ALLOW_INBOUND_FORWARDING=false'; do
+    grep -Fqx "$token" "$cfg" || failed=1
+  done
+  (( failed == 0 )) && pretest_record OK 'KVM NETWORK CONTRACT' 'frozen NAT/DHCP/DNS/isolation policy intact' || \
+    pretest_record KO 'KVM NETWORK CONTRACT' 'frozen network policy drift detected'
+}
+
+pretest_check_vm_host_separation() {
+  if grep -Fq 'devops_tooling_on_host: forbidden' "$REPO_ROOT/manifests/devops-vm/tools.yml" && \
+     grep -R -Eq 'vm_remote_(run|copy)_mutating' "$REPO_ROOT/modules/devops-vm"; then
+    pretest_record OK 'HOST / VM SEPARATION' 'DevOps tooling is VM-scoped and remotely transported'
+  else
+    pretest_record KO 'HOST / VM SEPARATION' 'DevOps tooling ownership/transport contract invalid'
+  fi
+}
+
+pretest_check_download_hygiene() {
+  if grep -R -n -E '^[[:space:]]*(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh)([[:space:]]|$)' \
+      "$REPO_ROOT/scripts" --include='*.sh' >/dev/null 2>&1; then
+    pretest_record KO 'DOWNLOAD HYGIENE' 'executable curl/wget pipe-to-shell detected'
+  else
+    pretest_record OK 'DOWNLOAD HYGIENE' 'no executable curl/wget pipe-to-shell path'
+  fi
+
+  if grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?apt-key([[:space:]]|$)' \
+      "$REPO_ROOT/scripts" "$REPO_ROOT/modules" --include='*.sh' >/dev/null 2>&1; then
+    pretest_record KO 'APT KEY HYGIENE' 'deprecated apt-key execution detected'
+  else
+    pretest_record OK 'APT KEY HYGIENE' 'signed keyring/source model enforced'
+  fi
+}
+
+pretest_check_mutation_boundaries() {
+  local failed=0
+  if grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(apt|apt-get|dnf|snap|flatpak|systemctl|virsh|qemu-img|virt-install|nft|iptables)([[:space:]]|$)' \
+      "$REPO_ROOT/modules" --include='*.sh' >/dev/null 2>&1; then
+    failed=1
+  fi
+  (( failed == 0 )) && pretest_record OK 'MUTATION BOUNDARIES' 'module mutations are mediated by secure runners/helpers' || \
+    pretest_record KO 'MUTATION BOUNDARIES' 'raw mutating command found in module layer'
+}
+
+pretest_check_backup_safety() {
+  local cfg="$REPO_ROOT/config/backup.conf"
+  if grep -Fqx 'BACKUP_ENCRYPTION_REQUIRED=true' "$cfg" && \
+     grep -Fqx 'BACKUP_INTEGRITY_CHECK_REQUIRED=true' "$cfg" && \
+     grep -Fqx 'BACKUP_RESTORE_TEST_REQUIRED=true' "$cfg" && \
+     grep -Fqx 'BACKUP_ALLOW_LIVE_QCOW2_COPY=false' "$cfg"; then
+    pretest_record OK 'BACKUP SAFETY' 'encryption, integrity, restore test and qcow2 consistency enforced'
+  else
+    pretest_record KO 'BACKUP SAFETY' 'backup safety invariant missing'
+  fi
+}
+
+pretest_check_runtime_inputs() {
+  local warnings=0
+  [[ -n "${VM_ADMIN_SSH_PRIVATE_KEY_FILE:-}" ]] || warnings=$((warnings + 1))
+  [[ -n "${BACKUP_REPOSITORY:-}" ]] || warnings=$((warnings + 1))
+  if (( warnings > 0 )); then
+    pretest_record WARN 'RUNTIME INPUTS' 'real-run credentials/targets intentionally absent during repository pre-test'
+  else
+    pretest_record OK 'RUNTIME INPUTS' 'runtime inputs supplied'
+  fi
+}
+
 pretest_render() {
   local report="$REPORT_ROOT/$RUN_ID-pretest-audit.txt" line status check detail verdict
   (( PRETEST_KO == 0 )) && verdict='GO PRE-TEST' || verdict='NO-GO PRE-TEST'
@@ -101,5 +177,11 @@ pretest_run() {
   pretest_check_security
   pretest_check_domains
   pretest_check_installer_gate
+  pretest_check_kvm_network_contract
+  pretest_check_vm_host_separation
+  pretest_check_download_hygiene
+  pretest_check_mutation_boundaries
+  pretest_check_backup_safety
+  pretest_check_runtime_inputs
   pretest_render
 }
