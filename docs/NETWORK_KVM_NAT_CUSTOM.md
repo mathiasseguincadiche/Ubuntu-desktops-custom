@@ -63,6 +63,10 @@ Le module réseau ne pourra être déclaré `SUCCESS` qu'après validation de :
 8. VM → LAN physique : blocage démontré ;
 9. LAN physique/Internet → VM : aucune exposition entrante non explicitement configurée.
 
+## Reprise / rollback futurs
+
+La création du réseau devra être transactionnelle : inventaire et sauvegarde de l'état libvirt/firewall avant action, création/validation de `devops-nat`, puis rollback ciblé uniquement des objets/règles créés par le projet si un postcheck échoue. Le rollback ne doit jamais supprimer ou réinitialiser des règles firewall préexistantes qui n'appartiennent pas au projet.
+
 ## Gate de sécurité
 
 Ce document et le XML sont déclaratifs. Aucun réseau n'est créé ou modifié tant que `REAL_MACHINE_APPROVED=false` et que le pré-test n'est pas validé.
