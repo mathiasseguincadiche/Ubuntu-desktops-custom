@@ -33,6 +33,7 @@ networks:
       physical_lan_detection: dynamic-host-routes
       route_overlap_action: block-and-require-manual-review
       preserve_existing_host_firewall: true
+      firewall_enforcement: implementation-pending-pretest
     non_dhcp_ranges:
       low: 192.168.50.1-99
       high: 192.168.50.201-253
