@@ -37,14 +37,24 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 
 @test "menu exposes dry-run but no real apply action" {
   grep -F 'Dry-run complet HOST -> KVM -> VM_DEVOPS -> BACKUP' "$REPO_ROOT/menu.sh"
-  run grep -Ei '^[[:space:]]*[0-9]+\).*(appliquer|apply reel|apply réel|installation reelle|installation réelle|restaurer|sauvegarder|supprimer)'
+  run grep -Ei '^[[:space:]]*[0-9]+\).*(appliquer|apply reel|apply réel|installation reelle|installation réelle|restaurer|sauvegarder|supprimer)' "$REPO_ROOT/menu.sh"
   [ "$status" -ne 0 ]
 }
 
-@test "installer supports full dry-run and hard-blocks apply" {
-  grep -F 'export DRY_RUN=true' "$REPO_ROOT/install.sh"
-  grep -F 'export REAL_MACHINE_APPROVED=false' "$REPO_ROOT/install.sh"
-  grep -F 'orchestrator_run_all' "$REPO_ROOT/install.sh"
-  grep -F 'REAL APPLY DISABLED' "$REPO_ROOT/install.sh"
-  grep -F 'exit 10' "$REPO_ROOT/install.sh"
+@test "installer writes current-commit dry-run proof" {
+  grep -F 'apply_gate_write_dryrun_proof' "$REPO_ROOT/install.sh"
+  grep -F 'verdict=FULL_DRY_RUN_PASS' "$REPO_ROOT/lib/apply_gate.sh"
+}
+
+@test "real apply feature remains hard closed" {
+  grep -F 'REAL_APPLY_FEATURE_ENABLED=false' "$REPO_ROOT/config/apply-gate.conf"
+  grep -F 'REAL APPLY BLOCKED: feature flag REAL_APPLY_FEATURE_ENABLED=false.' "$REPO_ROOT/install.sh"
+}
+
+@test "future real apply requires backup proof and explicit confirmations" {
+  grep -F 'REAL_APPLY_REQUIRE_VERIFIED_BACKUP=true' "$REPO_ROOT/config/apply-gate.conf"
+  grep -F 'REAL_APPLY_REQUIRE_EXACT_CONFIRMATION=true' "$REPO_ROOT/config/apply-gate.conf"
+  grep -F 'REAL_APPLY_PHASE_CONFIRMATION=true' "$REPO_ROOT/config/apply-gate.conf"
+  grep -F 'apply_gate_verify_backup_proof' "$REPO_ROOT/lib/apply_gate.sh"
+  grep -F 'apply_gate_confirm_phase' "$REPO_ROOT/install.sh"
 }
