@@ -1,24 +1,16 @@
-schema: 1
-scope: VM_DEVOPS
+vm:
+  name: ubuntu-devops
+  scope: VM_DEVOPS
+  network: devops-nat
+  network_policy: custom-nat-isolated
+  stable_address: dhcp-reservation
+
 tools:
   - git
-  - github-cli
   - docker
-  - kubectl
-  - helm
-  - kind
+  - kubernetes
   - terraform
-  - opentofu
   - ansible
-  - packer
-  - aws-cli-v2
+  - aws-cli
   - azure-cli
-  - trivy
-  - syft
-  - grype
-  - cosign
-  - hadolint
-  - shellcheck
-  - yamllint
-  - actionlint
-  - pre-commit
+  - devsecops
