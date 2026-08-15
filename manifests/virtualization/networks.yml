@@ -11,7 +11,9 @@ networks:
       end: 192.168.50.200
       reservations:
         strategy: deterministic-mac
-        address_source: non-conflicting-address-selected-at-implementation
+        # Stable VM addresses should be reserved inside the DHCP pool so
+        # dnsmasq/libvirt remains the single authority for guest addressing.
+        address_source: conflict-checked-address-within-dhcp-pool
     dns:
       - 9.9.9.9
       - 1.1.1.1
@@ -27,6 +29,6 @@ networks:
       physical_lan_detection: dynamic-host-routes
       route_overlap_action: block-and-require-manual-review
       preserve_existing_host_firewall: true
-    reserved_ranges:
-      infrastructure: 192.168.50.2-99
-      future: 192.168.50.201-253
+    non_dhcp_ranges:
+      low: 192.168.50.1-99
+      high: 192.168.50.201-253
