@@ -18,9 +18,15 @@ vm_remote_prepare() {
   safe_mkdir "$(dirname "$VM_REMOTE_KNOWN_HOSTS")"
 }
 
+vm_remote_shell_payload() {
+  local command="${1:?remote command required}"
+  printf 'bash -lc %q\n' "$command"
+}
+
 vm_remote_run_mutating() {
-  local remote_command="${1:?remote command required}"
+  local remote_command="${1:?remote command required}" payload
   vm_remote_prepare || return $?
+  payload="$(vm_remote_shell_payload "$remote_command")"
   run_mutating VM_DEVOPS ssh \
     -i "$VM_ADMIN_SSH_PRIVATE_KEY_FILE" \
     -o BatchMode=yes \
@@ -28,12 +34,13 @@ vm_remote_run_mutating() {
     -o StrictHostKeyChecking=accept-new \
     -o "UserKnownHostsFile=$VM_REMOTE_KNOWN_HOSTS" \
     "$VM_REMOTE_USER@$VM_REMOTE_IP" \
-    bash -lc "$remote_command"
+    "$payload"
 }
 
 vm_remote_run_readonly() {
-  local remote_command="${1:?remote command required}"
+  local remote_command="${1:?remote command required}" payload
   vm_remote_prepare || return $?
+  payload="$(vm_remote_shell_payload "$remote_command")"
   run_readonly VM_DEVOPS ssh \
     -i "$VM_ADMIN_SSH_PRIVATE_KEY_FILE" \
     -o BatchMode=yes \
@@ -41,7 +48,7 @@ vm_remote_run_readonly() {
     -o StrictHostKeyChecking=accept-new \
     -o "UserKnownHostsFile=$VM_REMOTE_KNOWN_HOSTS" \
     "$VM_REMOTE_USER@$VM_REMOTE_IP" \
-    bash -lc "$remote_command"
+    "$payload"
 }
 
 vm_remote_copy_mutating() {
