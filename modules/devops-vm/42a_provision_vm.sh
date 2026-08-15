@@ -19,6 +19,33 @@ vm_provision_identity() {
   printf '%s|%s\n' "$mac" "$ip"
 }
 
+vm_provision_rollback() {
+  local uri="$1" network="$2" name="$3" disk="$4" mac="$5" ip="$6" reservation_added="$7"
+  local failed=0 state
+
+  log_warn VM_DEVOPS "rolling back incomplete provisioning for $name"
+
+  if sudo virsh --connect "$uri" dominfo "$name" >/dev/null 2>&1; then
+    state="$(sudo virsh --connect "$uri" domstate "$name" 2>/dev/null || true)"
+    if [[ "$state" == running || "$state" == paused || "$state" == 'in shutdown' ]]; then
+      run_mutating VM_DEVOPS sudo virsh --connect "$uri" destroy "$name" || failed=1
+    fi
+    run_mutating VM_DEVOPS sudo virsh --connect "$uri" undefine "$name" --nvram || \
+      run_mutating VM_DEVOPS sudo virsh --connect "$uri" undefine "$name" || failed=1
+  fi
+
+  if [[ "$reservation_added" == true ]]; then
+    run_mutating VM_DEVOPS sudo virsh --connect "$uri" net-update "$network" delete ip-dhcp-host \
+      "<host mac='$mac' name='$name' ip='$ip'/>" --live --config || failed=1
+  fi
+
+  if [[ -e "$disk" ]]; then
+    run_mutating VM_DEVOPS sudo rm -f -- "$disk" || failed=1
+  fi
+
+  (( failed == 0 ))
+}
+
 vm_provision_precheck() {
   assert_scope VM_DEVOPS
   command -v virsh >/dev/null 2>&1 || [[ "${DRY_RUN:-true}" == true ]] || return "$EXIT_PRECHECK_FAILED"
@@ -37,12 +64,14 @@ UBUNTU-DEVOPS PROVISION PLAN:
 - attach the NoCloud seed and boot via virt-install --import
 - no VM autostart by default
 - never expose a physical bridge or inbound port forward
+- rollback a newly-created disk, DHCP reservation and partial libvirt domain if provisioning fails
 - every mutation is executed only through run_mutating
 EOF
 }
 
 vm_provision_apply() {
   local packed base disk seed identity mac ip
+  local reservation_added=false
   local name="${VM_DEVOPS_NAME:-ubuntu-devops}"
   local network="${VM_DEVOPS_NETWORK:-devops-nat}"
   local uri="${LIBVIRT_URI:-qemu:///system}"
@@ -64,22 +93,36 @@ vm_provision_apply() {
     }
   fi
 
-  run_mutating VM_DEVOPS sudo cp --reflink=auto --sparse=always "$base" "$disk" || return "$EXIT_APPLY_FAILED"
-  run_mutating VM_DEVOPS sudo qemu-img resize "$disk" "${VM_DEVOPS_DISK_GB:-200}G" || return "$EXIT_APPLY_FAILED"
+  if ! run_mutating VM_DEVOPS sudo cp --reflink=auto --sparse=always "$base" "$disk"; then
+    return "$EXIT_APPLY_FAILED"
+  fi
+  if ! run_mutating VM_DEVOPS sudo qemu-img resize "$disk" "${VM_DEVOPS_DISK_GB:-200}G"; then
+    if ! is_true "${DRY_RUN:-true}"; then
+      vm_provision_rollback "$uri" "$network" "$name" "$disk" "$mac" "$ip" false || return "$EXIT_ROLLBACK_FAILED"
+    fi
+    return "$EXIT_APPLY_FAILED"
+  fi
 
   if is_true "${DRY_RUN:-true}"; then
     run_mutating VM_DEVOPS sudo virsh --connect "$uri" net-update "$network" add ip-dhcp-host \
       "<host mac='$mac' name='$name' ip='$ip'/>" --live --config || return "$EXIT_APPLY_FAILED"
   else
     local xml
-    xml="$(sudo virsh --connect "$uri" net-dumpxml "$network")" || return "$EXIT_APPLY_FAILED"
+    xml="$(sudo virsh --connect "$uri" net-dumpxml "$network")" || {
+      vm_provision_rollback "$uri" "$network" "$name" "$disk" "$mac" "$ip" false || return "$EXIT_ROLLBACK_FAILED"
+      return "$EXIT_APPLY_FAILED"
+    }
     if ! grep -Fiq "mac='$mac'" <<< "$xml"; then
-      run_mutating VM_DEVOPS sudo virsh --connect "$uri" net-update "$network" add ip-dhcp-host \
-        "<host mac='$mac' name='$name' ip='$ip'/>" --live --config || return "$EXIT_APPLY_FAILED"
+      if ! run_mutating VM_DEVOPS sudo virsh --connect "$uri" net-update "$network" add ip-dhcp-host \
+        "<host mac='$mac' name='$name' ip='$ip'/>" --live --config; then
+        vm_provision_rollback "$uri" "$network" "$name" "$disk" "$mac" "$ip" false || return "$EXIT_ROLLBACK_FAILED"
+        return "$EXIT_APPLY_FAILED"
+      fi
+      reservation_added=true
     fi
   fi
 
-  run_mutating VM_DEVOPS sudo virt-install \
+  if ! run_mutating VM_DEVOPS sudo virt-install \
     --connect "$uri" \
     --name "$name" \
     --memory "${VM_DEVOPS_RAM_MB:-16384}" \
@@ -93,7 +136,12 @@ vm_provision_apply() {
     --osinfo detect=on,require=off \
     --graphics none \
     --console pty,target_type=serial \
-    --noautoconsole || return "$EXIT_APPLY_FAILED"
+    --noautoconsole; then
+    if ! is_true "${DRY_RUN:-true}"; then
+      vm_provision_rollback "$uri" "$network" "$name" "$disk" "$mac" "$ip" "$reservation_added" || return "$EXIT_ROLLBACK_FAILED"
+    fi
+    return "$EXIT_APPLY_FAILED"
+  fi
 }
 
 vm_provision_postcheck() {
