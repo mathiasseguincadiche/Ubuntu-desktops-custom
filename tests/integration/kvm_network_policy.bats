@@ -9,6 +9,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "custom KVM network is persistent" {
+  run grep -F 'KVM_NETWORK_AUTOSTART=true' "$REPO_ROOT/config/virtualization.conf"
+  [ "$status" -eq 0 ]
+}
+
 @test "custom KVM gateway is .254" {
   run grep -F 'KVM_GATEWAY=192.168.50.254' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
