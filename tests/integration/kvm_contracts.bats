@@ -13,9 +13,20 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   [ "$status" -eq 0 ]
 }
 
-@test "KVM modules contain no active package install or libvirt mutation" {
-  run grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(apt|apt-get)[[:space:]]+(install|upgrade)|^[[:space:]]*virsh([[:space:]].*)?(net-define|net-start|pool-define|pool-start|define|create)' "$REPO_ROOT/modules/virtualization"
+@test "implemented KVM mutations use secure runner" {
+  grep -F 'run_mutating KVM' "$REPO_ROOT/modules/virtualization/21_stack_qemu_libvirt.sh"
+  grep -F 'run_mutating KVM' "$REPO_ROOT/modules/virtualization/22_firmware_uefi_tpm.sh"
+  grep -F 'run_mutating KVM' "$REPO_ROOT/modules/virtualization/23_storage_pools.sh"
+}
+
+@test "KVM modules contain no raw package or libvirt mutation bypass" {
+  run grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(apt|apt-get)[[:space:]]+(install|upgrade)|^[[:space:]]*(sudo[[:space:]]+)?virsh([[:space:]].*)?(net-define|net-start|pool-define|pool-start|define|create)' "$REPO_ROOT/modules/virtualization"
   [ "$status" -ne 0 ]
+}
+
+@test "custom network real mutation remains separately blocked" {
+  grep -F 'BLOCKED: KVM network mutation remains disabled' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  grep -F 'return "$EXIT_SECURITY_BLOCK"' "$REPO_ROOT/modules/virtualization/24_networks.sh"
 }
 
 @test "OS catalog pins official Ubuntu 26.04 artifacts" {
