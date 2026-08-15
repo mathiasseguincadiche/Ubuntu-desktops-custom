@@ -44,9 +44,14 @@ if [[ "$MODE" == '--dry-run' ]]; then
   exit "$rc"
 fi
 
-# REAL APPLY path: intentionally impossible while REAL_APPLY_FEATURE_ENABLED=false.
 printf '%s\n' '=== REAL MACHINE APPLY GATE ==='
 printf '%s\n' 'No mutation is allowed until every gate below passes.'
+
+# The current architecture branch must reject --apply immediately.
+if ! is_true "${REAL_APPLY_FEATURE_ENABLED:-false}"; then
+  printf '%s\n' 'REAL APPLY BLOCKED: feature flag REAL_APPLY_FEATURE_ENABLED=false.' >&2
+  exit "$EXIT_SECURITY_BLOCK"
+fi
 
 # Hardware/OS preflight is read-only and must succeed on the actual workstation.
 ACTIVE_SCOPE="$SCOPE_HOST"
@@ -62,8 +67,8 @@ if ! apply_gate_open_runtime; then
   exit "$rc"
 fi
 
-# If the feature flag is explicitly opened in a future reviewed commit,
-# each major domain still requires an independent operator confirmation.
+# A future reviewed commit may open the feature flag. Even then, each major
+# domain still requires an independent operator confirmation.
 for scope in "$SCOPE_HOST" "$SCOPE_KVM" "$SCOPE_VM_DEVOPS" "$SCOPE_BACKUP"; do
   apply_gate_confirm_phase "$scope" || {
     rc=$?
