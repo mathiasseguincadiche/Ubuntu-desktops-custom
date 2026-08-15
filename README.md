@@ -11,6 +11,19 @@ Version actuelle : **1.0.0**
 - **VM_DEVOPS** — Ubuntu Server 26.04 LTS, cloud-init, SSH, Git, Terraform, Ansible, Docker Engine/Buildx/Compose, kubectl, Helm, kind, AWS CLI, Azure CLI et DevSecOps.
 - **BACKUP/RESTORE** — Restic chiffré, inventaire, intégrité, rétention, restauration granulaire et disaster recovery.
 
+## Démarrage rapide
+
+Lire d'abord `docs/INSTALLATION_GUIDE.md`, puis :
+
+```bash
+./diagnostic.sh
+./install.sh --dry-run
+```
+
+Ne lancer `./install.sh --apply` qu'après validation du diagnostic, du dry-run et du backup pré-APPLY.
+
+Pour l'exploitation quotidienne et les incidents, utiliser `docs/RUNBOOK_OPERATIONS.md`.
+
 ## Réseau KVM
 
 `devops-nat` utilise `192.168.50.0/24` avec :
@@ -31,16 +44,6 @@ Voir `docs/NETWORK_KVM_NAT_CUSTOM.md`.
 
 Le chemin d'exécution réelle existe, mais reste **fail-closed** : `REAL_MACHINE_APPROVED=false` est la valeur statique par défaut. `./install.sh --apply` exige notamment un TTY interactif, un diagnostic réel valide, un dry-run réussi sur le même commit, un backup Restic externe vérifié et récent, une confirmation globale exacte et des confirmations séparées pour HOST, KVM, VM_DEVOPS et BACKUP.
 
-Commandes principales :
-
-```bash
-./diagnostic.sh
-./install.sh --dry-run
-./menu.sh
-```
-
-Ne lancer `./install.sh --apply` qu'après validation des gates et du backup pré-APPLY.
-
 ## Validation GitHub
 
 La V1.0.0 a passé :
@@ -56,6 +59,13 @@ Dernier verdict de référence du laboratoire VM : `REAL UBUNTU 26.04 VM PRE-TES
 
 ## Documentation
 
-- `docs/V1_EXECUTION_CANDIDATE.md` — procédure protégée avant exécution réelle ;
-- `docs/NETWORK_KVM_NAT_CUSTOM.md` — contrat réseau KVM ;
-- `docs/` — architecture, exploitation et validations complémentaires.
+- `docs/INSTALLATION_GUIDE.md` — installation et première exécution de A à Z ;
+- `docs/RUNBOOK_OPERATIONS.md` — runbook principal : exploitation, maintenance, KVM, VM DevOps, backup, restore, disaster recovery, incidents et rollback ;
+- `docs/GUIDE_DEBUTANT_KVM_LIBVIRT.md` — commandes KVM/libvirt pour débuter ;
+- `docs/NETWORK_KVM_NAT_CUSTOM.md` — contrat et dépannage réseau KVM ;
+- `docs/ARCHITECTURE_TECHNIQUE.md` — architecture technique ;
+- `docs/HOST_PREFLIGHT_CONTRACT.md` — contrat de préflight HOST ;
+- `docs/MODULE_EXECUTION_PLAN.md` — ordre et dépendances des modules ;
+- `docs/ORCHESTRATION_ENGINE.md` — fonctionnement du moteur ;
+- `docs/SECURITY.md` — règles de sécurité ;
+- `docs/V1_EXECUTION_CANDIDATE.md` — historique de la procédure de validation avant V1.0.0.
