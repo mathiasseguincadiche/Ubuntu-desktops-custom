@@ -59,6 +59,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "KVM preflight explicitly checks route conflicts" {
+  run grep -F 'ensure 192.168.50.0/24 is not already routed/connected' "$REPO_ROOT/modules/virtualization/20_preflight_kvm.sh"
+  [ "$status" -eq 0 ]
+}
+
 @test "existing host firewall must be preserved" {
   run grep -F 'KVM_PRESERVE_EXISTING_FIREWALL=true' "$REPO_ROOT/config/virtualization.conf"
   [ "$status" -eq 0 ]
