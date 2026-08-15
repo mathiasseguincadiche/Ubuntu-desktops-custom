@@ -15,12 +15,12 @@ networks:
       end: 192.168.50.200
       reservations:
         strategy: deterministic-mac
-        # Stable VM addresses should be reserved inside the DHCP pool so
-        # dnsmasq/libvirt remains the single authority for guest addressing.
         address_source: conflict-checked-address-within-dhcp-pool
     dns:
-      - 9.9.9.9
-      - 1.1.1.1
+      required_upstreams:
+        - 9.9.9.9
+        - 1.1.1.1
+      enforcement: implementation-pending-pretest
     policy:
       vm_to_internet: allow
       vm_to_vm: allow
