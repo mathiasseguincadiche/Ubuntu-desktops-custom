@@ -43,6 +43,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "network contract requires dynamic route overlap detection" {
+  run grep -F 'reject overlap between 192.168.50.0/24' "$REPO_ROOT/modules/virtualization/24_networks.sh"
+  [ "$status" -eq 0 ]
+}
+
 @test "network apply remains blocked during architecture phase" {
   run bash -c "source '$REPO_ROOT/modules/virtualization/24_networks.sh'; module_apply"
   [ "$status" -eq 8 ]
