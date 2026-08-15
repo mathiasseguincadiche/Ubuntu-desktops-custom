@@ -38,7 +38,14 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "HOST implementation phase contains no active package install or service mutation" {
+@test "implemented HOST package mutations use secure runner" {
+  grep -F 'run_mutating HOST sudo apt-get update' "$REPO_ROOT/modules/host/01_os_updates.sh"
+  grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y full-upgrade' "$REPO_ROOT/modules/host/01_os_updates.sh"
+  grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install' "$REPO_ROOT/modules/host/02_firmware_microcode.sh"
+  grep -F 'run_mutating HOST sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install' "$REPO_ROOT/modules/host/03_graphics_intel_arc.sh"
+}
+
+@test "HOST modules contain no raw package or service mutation bypass" {
   run grep -R -n -E '^[[:space:]]*(sudo[[:space:]]+)?(apt|apt-get)[[:space:]]+(install|upgrade|dist-upgrade|full-upgrade)|^[[:space:]]*(sudo[[:space:]]+)?systemctl[[:space:]]+(enable|disable|start|stop|restart)' "$REPO_ROOT/modules/host"
   [ "$status" -ne 0 ]
 }
