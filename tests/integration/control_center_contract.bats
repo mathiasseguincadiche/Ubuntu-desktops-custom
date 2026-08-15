@@ -19,8 +19,20 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F "verdict='NO-GO PRE-TEST'" "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
+@test "final pretest validates critical safety invariants" {
+  grep -F 'pretest_check_kvm_network_contract' "$REPO_ROOT/lib/pretest_audit.sh"
+  grep -F 'pretest_check_vm_host_separation' "$REPO_ROOT/lib/pretest_audit.sh"
+  grep -F 'pretest_check_download_hygiene' "$REPO_ROOT/lib/pretest_audit.sh"
+  grep -F 'pretest_check_mutation_boundaries' "$REPO_ROOT/lib/pretest_audit.sh"
+  grep -F 'pretest_check_backup_safety' "$REPO_ROOT/lib/pretest_audit.sh"
+}
+
 @test "real machine apply remains explicitly blocked in report" {
   grep -F 'REAL MACHINE APPLY: BLOCKED' "$REPO_ROOT/lib/pretest_audit.sh"
+}
+
+@test "missing runtime credentials are warnings not fake readiness inputs" {
+  grep -F "pretest_record WARN 'RUNTIME INPUTS'" "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
 @test "menu has no mutating action option" {
