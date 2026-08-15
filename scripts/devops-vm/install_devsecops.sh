@@ -40,10 +40,23 @@ curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/${trivy_tag}
 )
 install -m 0755 "$tmp/trivy" /usr/local/bin/trivy
 
+# Hadolint: official release binary + official checksums.sha256.
+hadolint_tag="$(curl -fsSL https://api.github.com/repos/hadolint/hadolint/releases/latest | jq -r '.tag_name')"
+[[ "$hadolint_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { printf '%s\n' 'ERROR: invalid Hadolint release tag.' >&2; exit 4; }
+hadolint_asset='hadolint-linux-x86_64'
+curl -fsSL "https://github.com/hadolint/hadolint/releases/download/${hadolint_tag}/${hadolint_asset}" -o "$tmp/$hadolint_asset"
+curl -fsSL "https://github.com/hadolint/hadolint/releases/download/${hadolint_tag}/checksums.sha256" -o "$tmp/hadolint-checksums.sha256"
+(
+  cd "$tmp"
+  grep -F "  $hadolint_asset" hadolint-checksums.sha256 | sha256sum --check --status
+)
+install -m 0755 "$tmp/$hadolint_asset" /usr/local/bin/hadolint
+
 # Checkov is isolated through pipx rather than polluting system Python.
 pipx install --global checkov || pipx upgrade --global checkov
 
 shellcheck --version
 gitleaks version
 trivy --version
+hadolint --version
 checkov --version
