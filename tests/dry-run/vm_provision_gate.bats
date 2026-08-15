@@ -34,6 +34,9 @@ EOF
 
 @test "VM provision apply is blocked when real gate is closed" {
   tmp="$(mktemp -d)"
+  mkdir -p "$tmp/pool/base" "$tmp/pool/seeds"
+  : > "$tmp/pool/base/ubuntu-26.04-server-cloudimg-amd64.img"
+  : > "$tmp/pool/seeds/ubuntu-devops-seed.img"
   cat > "$tmp/ubuntu-devops-vm-identity.env" <<'EOF'
 VM_DEVOPS_RESOLVED_MAC=52:54:00:12:34:56
 VM_DEVOPS_RESOLVED_IP=192.168.50.150
@@ -51,6 +54,7 @@ EOF
     REAL_MACHINE_APPROVED=false
     STATE_ROOT='$tmp'
     REPO_ROOT='$REPO_ROOT'
+    KVM_POOL_PATH='$tmp/pool'
     LOG_FILE=/dev/null
     vm_provision_apply
   "
