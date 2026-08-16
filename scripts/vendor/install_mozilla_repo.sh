@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { printf '%s\n' 'ERROR: root privileges required.' >&2; exit 1; }
 
-for cmd in curl gpg apt-get dpkg-query; do
+for cmd in curl gpg apt-get apt-cache dpkg-query; do
   command -v "$cmd" >/dev/null 2>&1 || { printf 'ERROR: %s is required.\n' "$cmd" >&2; exit 1; }
 done
 
@@ -15,9 +15,18 @@ if command -v snap >/dev/null 2>&1; then
     fi
   done
 fi
+if command -v flatpak >/dev/null 2>&1; then
+  for scope in system user; do
+    for app_id in org.mozilla.firefox org.mozilla.Thunderbird; do
+      if flatpak info --"$scope" "$app_id" >/dev/null 2>&1; then
+        conflicts+=("$app_id:flatpak-$scope")
+      fi
+    done
+  done
+fi
 if ((${#conflicts[@]} > 0)); then
   printf 'ERROR: packaging migration required before Mozilla APT install: %s\n' "${conflicts[*]}" >&2
-  printf '%s\n' 'Run the read-only packaging inventory, migrate profiles if needed, then remove the conflicting Snap explicitly before APPLY.' >&2
+  printf '%s\n' 'Run the read-only packaging inventory, migrate profiles if needed, then remove the conflicting package explicitly before APPLY.' >&2
   exit 1
 fi
 
