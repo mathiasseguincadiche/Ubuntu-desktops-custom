@@ -8,6 +8,8 @@
 - Pile Intel Arc/Mesa/Vulkan/VA-API et diagnostics GPU.
 - Codecs et multimédia.
 - Socle applicatif desktop, VS Code/Remote SSH, terminal Ptyxis/Bash et outils de bureau.
+- Politique applicative auditée par source upstream : Mozilla APT pour Firefox/Thunderbird, dépôts éditeurs pour VS Code/Brave/ONLYOFFICE/Steam, VideoLAN Snap pour VLC, Flathub upstream pour Bitwarden/OBS/Extension Manager et APT Ubuntu lorsque l'intégration native reste préférable.
+- Diagnostic read-only des gestionnaires et de la provenance APT/Flatpak, avec détection `DRIFT`/`DUPLICATE` et migrations cross-manager fail-closed sans désinstallation automatique.
 - Socle gaming Steam, GameMode, Gamescope, MangoHud/MangoApp et runtime Vulkan.
 - Observabilité matérielle NVMe/SMART, températures, PCI/USB, réseau, audio et webcam.
 
