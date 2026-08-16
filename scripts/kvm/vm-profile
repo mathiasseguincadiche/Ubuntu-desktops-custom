@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=config/vm-profiles.conf
 source "$REPO_ROOT/config/vm-profiles.conf"
 URI="${LIBVIRT_URI:-qemu:///system}"
+export LC_ALL=C
 
 usage() {
   cat <<'EOF'
@@ -12,71 +14,184 @@ Usage:
   vm-profile show ubuntu-desktop|windows-11
   vm-profile command ubuntu-desktop --iso /path/ubuntu.iso [--name NAME]
   vm-profile command windows-11 --iso /path/windows11.iso --virtio-iso /path/virtio-win.iso [--name NAME]
+  vm-profile create ubuntu-desktop --iso /path/ubuntu.iso [--name NAME]
+  vm-profile create windows-11 --iso /path/windows11.iso --virtio-iso /path/virtio-win.iso [--name NAME]
 
-'command' only prints the reviewed virt-install command. It never creates a VM.
+'command' prints the reviewed virt-install command and never creates a VM.
+'create' is interactive, checks KVM/network/storage inputs, creates a dedicated
+QCOW2 volume, then launches virt-install. It is never used by the workstation
+installation automatically.
 EOF
+}
+
+resolve_intel_render_node() {
+  local configured="${UBUNTU_DESKTOP_RENDER_NODE:-auto-intel}" node sysfs vendor
+  if [[ "$configured" != 'auto-intel' ]]; then
+    [[ -e "$configured" ]] || { printf 'Configured render node not found: %s\n' "$configured" >&2; return 1; }
+    printf '%s\n' "$configured"
+    return 0
+  fi
+
+  shopt -s nullglob
+  local nodes=(/dev/dri/renderD*)
+  shopt -u nullglob
+  for node in "${nodes[@]}"; do
+    sysfs="/sys/class/drm/$(basename "$node")/device"
+    [[ -r "$sysfs/vendor" ]] || continue
+    vendor="$(<"$sysfs/vendor")"
+    if [[ "${vendor,,}" == '0x8086' ]]; then
+      printf '%s\n' "$node"
+      return 0
+    fi
+  done
+  printf '%s\n' 'No Intel DRM render node detected for Ubuntu Desktop 3D acceleration.' >&2
+  return 1
 }
 
 profile_show() {
   case "$1" in
     ubuntu-desktop)
-      printf '%s\n' "name=$UBUNTU_DESKTOP_NAME" "os=$UBUNTU_DESKTOP_OS" "vcpu=$UBUNTU_DESKTOP_VCPU" "ram_mb=$UBUNTU_DESKTOP_RAM_MB" "disk_gb=$UBUNTU_DESKTOP_DISK_GB" \
-        "graphics=$UBUNTU_DESKTOP_GRAPHICS" "video=$UBUNTU_DESKTOP_VIDEO" "accel3d=$UBUNTU_DESKTOP_VIDEO_ACCEL3D" "render_node=$UBUNTU_DESKTOP_RENDER_NODE" "network=$UBUNTU_DESKTOP_NETWORK"
+      printf '%s\n' \
+        "name=$UBUNTU_DESKTOP_NAME" "os=$UBUNTU_DESKTOP_OS" \
+        "vcpu=$UBUNTU_DESKTOP_VCPU" "ram_mb=$UBUNTU_DESKTOP_RAM_MB" \
+        "disk_gb=$UBUNTU_DESKTOP_DISK_GB" "graphics=$UBUNTU_DESKTOP_GRAPHICS" \
+        "video=$UBUNTU_DESKTOP_VIDEO" "accel3d=$UBUNTU_DESKTOP_VIDEO_ACCEL3D" \
+        "backend=$UBUNTU_DESKTOP_3D_BACKEND" "render_node=$UBUNTU_DESKTOP_RENDER_NODE" \
+        "network=$UBUNTU_DESKTOP_NETWORK"
       ;;
     windows-11)
-      printf '%s\n' "name=$WINDOWS11_NAME" "os=$WINDOWS11_OS" "vcpu=$WINDOWS11_VCPU" "ram_mb=$WINDOWS11_RAM_MB" "disk_gb=$WINDOWS11_DISK_GB" \
-        "firmware=$WINDOWS11_FIRMWARE" "tpm=$WINDOWS11_TPM_VERSION" "disk_bus=$WINDOWS11_DISK_BUS" "network=$WINDOWS11_NETWORK"
+      printf '%s\n' \
+        "name=$WINDOWS11_NAME" "os=$WINDOWS11_OS" "vcpu=$WINDOWS11_VCPU" \
+        "ram_mb=$WINDOWS11_RAM_MB" "disk_gb=$WINDOWS11_DISK_GB" \
+        "firmware=$WINDOWS11_FIRMWARE" "tpm=$WINDOWS11_TPM_VERSION" \
+        "disk_bus=$WINDOWS11_DISK_BUS" "network=$WINDOWS11_NETWORK"
       ;;
     *) return 2 ;;
   esac
 }
 
-print_command() {
-  local profile="$1"; shift
-  local iso='' virtio_iso='' name=''
+parse_args() {
+  ISO='' VIRTIO_ISO='' VM_NAME=''
   while (($#)); do
     case "$1" in
-      --iso) iso="${2:-}"; shift 2 ;;
-      --virtio-iso) virtio_iso="${2:-}"; shift 2 ;;
-      --name) name="${2:-}"; shift 2 ;;
+      --iso) ISO="${2:-}"; shift 2 ;;
+      --virtio-iso) VIRTIO_ISO="${2:-}"; shift 2 ;;
+      --name) VM_NAME="${2:-}"; shift 2 ;;
       *) printf 'Unknown argument: %s\n' "$1" >&2; return 2 ;;
     esac
   done
-  [[ -n "$iso" ]] || { printf '%s\n' '--iso is required' >&2; return 2; }
+  [[ -n "$ISO" ]] || { printf '%s\n' '--iso is required' >&2; return 2; }
+}
 
-  case "$profile" in
+profile_values() {
+  case "$1" in
     ubuntu-desktop)
-      name="${name:-$UBUNTU_DESKTOP_NAME}"
-      printf '%q ' virt-install --connect "$URI" --name "$name" --memory "$UBUNTU_DESKTOP_RAM_MB" --vcpus "$UBUNTU_DESKTOP_VCPU" \
-        --cpu host-passthrough --machine q35 --boot uefi \
-        --disk "pool=$VM_PROFILE_DEFAULT_POOL,size=$UBUNTU_DESKTOP_DISK_GB,format=qcow2,bus=virtio" \
-        --network "network=$UBUNTU_DESKTOP_NETWORK,model=virtio" \
-        --graphics "spice,gl.enable=yes,listen=none,rendernode=$UBUNTU_DESKTOP_RENDER_NODE" \
-        --video virtio,accel3d=yes --channel spicevmc \
-        --sound ich9 --redirdev usb,type=spicevmc --redirdev usb,type=spicevmc \
-        --cdrom "$iso" --noautoconsole
-      printf '\n'
+      VM_NAME="${VM_NAME:-$UBUNTU_DESKTOP_NAME}"
+      VM_RAM="$UBUNTU_DESKTOP_RAM_MB"; VM_VCPU="$UBUNTU_DESKTOP_VCPU"; VM_DISK_GB="$UBUNTU_DESKTOP_DISK_GB"
+      VM_NETWORK="$UBUNTU_DESKTOP_NETWORK"; VM_DISK_BUS="$UBUNTU_DESKTOP_DISK_BUS"
       ;;
     windows-11)
-      [[ -n "$virtio_iso" ]] || { printf '%s\n' '--virtio-iso is required for windows-11' >&2; return 2; }
-      name="${name:-$WINDOWS11_NAME}"
-      printf '%q ' virt-install --connect "$URI" --name "$name" --memory "$WINDOWS11_RAM_MB" --vcpus "$WINDOWS11_VCPU" \
-        --cpu host-passthrough --machine q35 --boot uefi \
-        --tpm backend.type=emulator,backend.version=2.0,model=tpm-crb \
-        --disk "pool=$VM_PROFILE_DEFAULT_POOL,size=$WINDOWS11_DISK_GB,format=qcow2,bus=virtio" \
-        --disk "path=$virtio_iso,device=cdrom" --network "network=$WINDOWS11_NETWORK,model=virtio" \
-        --graphics spice,listen=none --video virtio --channel spicevmc \
-        --sound ich9 --redirdev usb,type=spicevmc --redirdev usb,type=spicevmc \
-        --cdrom "$iso" --noautoconsole
-      printf '\n'
+      [[ -n "$VIRTIO_ISO" ]] || { printf '%s\n' '--virtio-iso is required for windows-11' >&2; return 2; }
+      VM_NAME="${VM_NAME:-$WINDOWS11_NAME}"
+      VM_RAM="$WINDOWS11_RAM_MB"; VM_VCPU="$WINDOWS11_VCPU"; VM_DISK_GB="$WINDOWS11_DISK_GB"
+      VM_NETWORK="$WINDOWS11_NETWORK"; VM_DISK_BUS="$WINDOWS11_DISK_BUS"
       ;;
     *) return 2 ;;
   esac
+}
+
+validate_create_inputs() {
+  local profile="$1"
+  command -v virt-install >/dev/null 2>&1 || { printf '%s\n' 'virt-install is required.' >&2; return 1; }
+  command -v virsh >/dev/null 2>&1 || { printf '%s\n' 'virsh is required.' >&2; return 1; }
+  [[ -r "$ISO" ]] || { printf 'ISO not readable: %s\n' "$ISO" >&2; return 1; }
+  if [[ "$profile" == 'windows-11' ]]; then
+    [[ -r "$VIRTIO_ISO" ]] || { printf 'VirtIO ISO not readable: %s\n' "$VIRTIO_ISO" >&2; return 1; }
+    command -v swtpm >/dev/null 2>&1 || { printf '%s\n' 'swtpm is required for Windows 11 TPM 2.0.' >&2; return 1; }
+  else
+    resolve_intel_render_node >/dev/null || return 1
+  fi
+  virsh --connect "$URI" pool-info "$VM_PROFILE_DEFAULT_POOL" >/dev/null || return 1
+  virsh --connect "$URI" net-info "$VM_NETWORK" | grep -Eq '^Active:[[:space:]]+yes$' || {
+    printf 'Network is not active: %s\n' "$VM_NETWORK" >&2; return 1;
+  }
+  if virsh --connect "$URI" dominfo "$VM_NAME" >/dev/null 2>&1; then
+    printf 'VM already exists: %s\n' "$VM_NAME" >&2; return 1
+  fi
+  if virsh --connect "$URI" vol-info --pool "$VM_PROFILE_DEFAULT_POOL" "$VM_NAME.qcow2" >/dev/null 2>&1; then
+    printf 'Storage volume already exists: %s.qcow2\n' "$VM_NAME" >&2; return 1
+  fi
+}
+
+build_command() {
+  local profile="$1" disk_spec="$2" render_node=''
+  VM_COMMAND=(virt-install --connect "$URI" --name "$VM_NAME" --memory "$VM_RAM" --vcpus "$VM_VCPU"
+    --cpu host-passthrough --machine q35 --disk "$disk_spec"
+    --network "network=$VM_NETWORK,model=virtio" --sound ich9
+    --redirdev usb,type=spicevmc --redirdev usb,type=spicevmc --cdrom "$ISO" --noautoconsole)
+
+  case "$profile" in
+    ubuntu-desktop)
+      render_node="$(resolve_intel_render_node)" || return 1
+      VM_COMMAND+=(--boot uefi
+        --graphics "spice,gl.enable=yes,listen=none,gl.rendernode=$render_node"
+        --video virtio,accel3d=yes --channel spicevmc)
+      ;;
+    windows-11)
+      VM_COMMAND+=(--boot 'uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=yes'
+        --tpm backend.type=emulator,backend.version=2.0,model=tpm-crb
+        --disk "path=$VIRTIO_ISO,device=cdrom,readonly=on"
+        --graphics spice,listen=none --video virtio --channel spicevmc)
+      ;;
+  esac
+}
+
+print_command() {
+  local profile="$1"
+  parse_args "${@:2}" || return "$?"
+  profile_values "$profile" || return "$?"
+  build_command "$profile" "pool=$VM_PROFILE_DEFAULT_POOL,size=$VM_DISK_GB,format=qcow2,bus=$VM_DISK_BUS,cache=none,discard=unmap" || return "$?"
+  printf '%q ' "${VM_COMMAND[@]}"
+  printf '\n'
+}
+
+rollback_created_vm() {
+  virsh --connect "$URI" destroy "$VM_NAME" >/dev/null 2>&1 || true
+  virsh --connect "$URI" undefine "$VM_NAME" --nvram --tpm >/dev/null 2>&1 || \
+    virsh --connect "$URI" undefine "$VM_NAME" --nvram >/dev/null 2>&1 || \
+    virsh --connect "$URI" undefine "$VM_NAME" >/dev/null 2>&1 || true
+  virsh --connect "$URI" vol-delete --pool "$VM_PROFILE_DEFAULT_POOL" "$VM_NAME.qcow2" >/dev/null 2>&1 || true
+}
+
+create_vm() {
+  local profile="$1" confirmation volume="$VM_NAME.qcow2"
+  parse_args "${@:2}" || return "$?"
+  profile_values "$profile" || return "$?"
+  volume="$VM_NAME.qcow2"
+  validate_create_inputs "$profile" || return 1
+
+  [[ -t 0 && -t 1 ]] || { printf '%s\n' 'Interactive TTY required for VM creation.' >&2; return 1; }
+  printf 'Create %s with profile %s? Type exactly CREATE_%s: ' "$VM_NAME" "$profile" "$VM_NAME"
+  read -r confirmation
+  [[ "$confirmation" == "CREATE_$VM_NAME" ]] || { printf '%s\n' 'Creation cancelled.' >&2; return 1; }
+
+  virsh --connect "$URI" vol-create-as "$VM_PROFILE_DEFAULT_POOL" "$volume" "${VM_DISK_GB}G" --format qcow2 --allocation 0 >/dev/null
+  if ! build_command "$profile" "vol=$VM_PROFILE_DEFAULT_POOL/$volume,bus=$VM_DISK_BUS,cache=none,discard=unmap"; then
+    rollback_created_vm
+    return 1
+  fi
+  if ! "${VM_COMMAND[@]}"; then
+    printf '%s\n' 'virt-install failed; rolling back resources created by this operation.' >&2
+    rollback_created_vm
+    return 1
+  fi
+  printf 'VM created: %s\n' "$VM_NAME"
 }
 
 case "${1:-}" in
   list) printf '%s\n' ubuntu-desktop windows-11 ;;
   show) [[ $# -eq 2 ]] || { usage; exit 2; }; profile_show "$2" ;;
   command) [[ $# -ge 3 ]] || { usage; exit 2; }; profile="$2"; shift 2; print_command "$profile" "$@" ;;
+  create) [[ $# -ge 3 ]] || { usage; exit 2; }; profile="$2"; shift 2; create_vm "$profile" "$@" ;;
   *) usage; exit 2 ;;
 esac
