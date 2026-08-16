@@ -166,7 +166,7 @@ backup_password_file() {
   fi
 
   if [[ ! -s "$password_file" ]]; then
-    [[ -t 0 && -t 1 ]] || backup_fail 'interactive TTY required to create the Restic password file' "$EXIT_SECURITY_BLOCK"
+    [[ -t 0 ]] || backup_fail 'interactive TTY required to create the Restic password file' "$EXIT_SECURITY_BLOCK"
     password_dir="$(dirname "$password_file")"
     mkdir -p -- "$password_dir"
     chmod 0700 "$password_dir"
