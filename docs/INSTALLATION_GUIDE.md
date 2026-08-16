@@ -54,6 +54,16 @@ Le point d'entrée recommandé est :
 
 Le diagnostic est entièrement en lecture seule. Il combine l'audit des contrats du dépôt avec le preflight du HOST physique : Ubuntu 26.04, virtualisation AMD-V/SVM, EXT4 système/DATA, disponibilité de `/dev/kvm` et inventaire matériel/réseau. Les sondes d'état `virsh`, `systemctl`, `nft` ou équivalentes sont autorisées lorsqu'elles sont strictement non mutantes ; les commandes qui modifient le système doivent rester médiées par les runners sécurisés du projet.
 
+Le diagnostic ajoute aussi un inventaire des applications suivies par `manifests/host/app-packaging-policy.conf` à travers APT/DEB, Snap et Flatpak. Le rapport `reports/<RUN_ID>-app-packaging-inventory.txt` indique la source préférée et la source réellement présente :
+
+- `CONFORMING` : application déjà présente dans la source attendue ;
+- `PLANNED` : application absente et prévue par la convergence ;
+- `PRESERVED` : application Ubuntu existante conservée dans son format natif ;
+- `DRIFT` : application présente via une autre source que celle retenue par le projet ;
+- `DUPLICATE` : plusieurs gestionnaires fournissent la même application.
+
+`DRIFT` et `DUPLICATE` sont des avertissements à examiner avant l'APPLY ; l'inventaire ne supprime ni ne migre automatiquement aucune application.
+
 Verdict attendu avant de passer au dry-run :
 
 ```text
@@ -61,7 +71,7 @@ VERDICT: GO DIAGNOSTIC
 NEXT STEP: FULL DRY-RUN
 ```
 
-Ne pas continuer en présence d'un KO. Les avertissements doivent être compris avant l'APPLY. Le rapport global et l'inventaire HOST sont conservés dans `reports/`.
+Ne pas continuer en présence d'un KO. Les avertissements doivent être compris avant l'APPLY. Le rapport global, l'inventaire HOST et l'inventaire de packaging sont conservés dans `reports/`.
 
 ## 4. Dry-run intégral
 

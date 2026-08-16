@@ -35,6 +35,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/module_catalog.sh"
   # shellcheck source=lib/module_adapter.sh
   source "$REPO_ROOT/lib/module_adapter.sh"
+  # shellcheck source=lib/app_packaging_inventory.sh
+  source "$REPO_ROOT/lib/app_packaging_inventory.sh"
   # shellcheck source=lib/pretest_audit.sh
   source "$REPO_ROOT/lib/pretest_audit.sh"
   # shellcheck source=lib/apply_gate.sh
