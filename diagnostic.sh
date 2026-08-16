@@ -32,12 +32,14 @@ printf '\n'
 ui_meta 'OK' "$PRETEST_OK"
 ui_meta 'Attention' "$PRETEST_WARN"
 ui_meta 'Échec' "$PRETEST_KO"
+ui_info 'REAL MACHINE APPLY GATE: CLOSED BY DEFAULT (EXPECTED)'
 
 packaging_raw="$LOG_DIR/packaging.raw.log"
 if app_packaging_inventory_run > "$packaging_raw" 2>&1; then
   cat "$packaging_raw" >> "$MAIN_LOG"
   printf '\n[ PACKAGING ]  État des applications desktop\n'
   ui_rule
+  ui_check INFO 'APPLICATION PACKAGING INVENTORY' "tracked=$APP_PACKAGING_TRACKED"
   ui_check OK 'Applications suivies' "$APP_PACKAGING_TRACKED"
   ui_check OK 'Déjà conformes' "$APP_PACKAGING_CONFORMING"
   if (( APP_PACKAGING_PLANNED > 0 )); then
@@ -54,7 +56,8 @@ if app_packaging_inventory_run > "$packaging_raw" 2>&1; then
   else
     ui_check OK 'Cohérence packaging' 'drift=0 | duplicates=0'
   fi
-  ui_meta 'Rapport packaging' "$APP_PACKAGING_REPORT"
+  ui_info 'READ-ONLY: no package, snap or flatpak was installed, removed, refreshed or migrated.'
+  printf '  Packaging report: %s\n' "$APP_PACKAGING_REPORT"
 else
   cat "$packaging_raw" >> "$MAIN_LOG" 2>/dev/null || true
   ui_check KO 'Packaging applicatif' 'Impossible d’évaluer la politique ou l’inventaire'
@@ -63,9 +66,9 @@ fi
 
 report="$REPORT_ROOT/$RUN_ID-diagnostic-audit.txt"
 if (( diagnostic_rc == 0 && PRETEST_KO == 0 )); then
-  ui_summary 'GO DIAGNOSTIC' 'Lancer la simulation complète — option 2' "$report" "$LOG_DIR"
+  ui_summary 'GO DIAGNOSTIC' 'FULL DRY-RUN' "$report" "$LOG_DIR"
 else
-  ui_summary 'NO-GO DIAGNOSTIC' 'Corriger les éléments en échec avant le dry-run' "$report" "$LOG_DIR"
+  ui_summary 'NO-GO DIAGNOSTIC' 'CORRECT KO BEFORE DRY-RUN' "$report" "$LOG_DIR"
 fi
 
 exit "$diagnostic_rc"
