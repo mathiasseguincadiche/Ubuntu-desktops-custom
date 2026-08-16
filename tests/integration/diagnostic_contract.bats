@@ -24,6 +24,9 @@ setup() {
   [[ "$output" == *"REAL MACHINE APPLY GATE: CLOSED BY DEFAULT (EXPECTED)"* ]]
   [[ "$output" == *"NEXT STEP: FULL DRY-RUN"* ]]
   [[ "$output" == *"VERDICT: GO DIAGNOSTIC"* ]]
+  [[ "$output" == *"APPLICATION PACKAGING INVENTORY"* ]]
+  [[ "$output" == *"READ-ONLY: no package, snap or flatpak was installed, removed, refreshed or migrated."* ]]
+  [[ "$output" == *"Packaging report:"* ]]
 }
 
 @test "mutation boundary audit allows read-only probes and package-list tokens" {
