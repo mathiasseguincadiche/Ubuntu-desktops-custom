@@ -126,7 +126,9 @@ backup_ensure_repository_dir() {
   gid="$(id -g)"
 
   if [[ ! -e "$parent" ]]; then
-    if ! mkdir -p -m 0700 -- "$parent" 2>/dev/null; then
+    if mkdir -p -- "$parent" 2>/dev/null; then
+      chmod 0700 "$parent"
+    else
       command -v sudo >/dev/null 2>&1 || backup_fail "cannot create repository parent: $parent"
       sudo install -d -m 0700 -o "$uid" -g "$gid" -- "$parent"
     fi
@@ -155,7 +157,7 @@ backup_ensure_repository_dir() {
 backup_password_file() {
   local configured="${RESTIC_PASSWORD_FILE:-}"
   local relative="${BACKUP_PREAPPLY_PASSWORD_FILE_RELATIVE:-.config/ubuntu-desktops-custom/secrets/restic-password}"
-  local password_file first second mode
+  local password_file password_dir first second mode
 
   if [[ -n "$configured" ]]; then
     password_file="$configured"
@@ -165,7 +167,9 @@ backup_password_file() {
 
   if [[ ! -s "$password_file" ]]; then
     [[ -t 0 && -t 1 ]] || backup_fail 'interactive TTY required to create the Restic password file' "$EXIT_SECURITY_BLOCK"
-    mkdir -p -m 0700 -- "$(dirname "$password_file")"
+    password_dir="$(dirname "$password_file")"
+    mkdir -p -- "$password_dir"
+    chmod 0700 "$password_dir"
     printf '%s\n' 'A Restic passphrase is required. It is never stored in Git.' >&2
     printf '%s\n' 'Keep this passphrase separately (for example in your password manager); the encrypted backup cannot be restored without it.' >&2
     read -r -s -p 'Restic passphrase (16+ characters): ' first
@@ -187,7 +191,8 @@ backup_password_file() {
 
 backup_capture_inventory() {
   local inventory_dir="$1" commit="$2"
-  mkdir -p -m 0700 -- "$inventory_dir"
+  mkdir -p -- "$inventory_dir"
+  chmod 0700 "$inventory_dir"
 
   {
     printf 'commit=%s\n' "$commit"
@@ -311,7 +316,8 @@ snapshot_id="$(
 )" || backup_fail 'cannot resolve the unique snapshot created by this run'
 
 restore_dir="$inventory_dir/restore-test"
-mkdir -p -m 0700 -- "$restore_dir"
+mkdir -p -- "$restore_dir"
+chmod 0700 "$restore_dir"
 canary="$inventory_dir/restore-canary.txt"
 printf '%s\n' 'Running granular restore smoke test...'
 restic --repo "$repository" --password-file "$password_file" restore "$snapshot_id" \
