@@ -32,6 +32,13 @@ _log() {
     printf '%s\n' "$line" >> "$MAIN_LOG"
   fi
 
+  # Unit libraries and legacy callers may source logging.sh without ui.sh.
+  # Preserve the historical console behavior in that isolated context.
+  if ! declare -F ui_is_operator >/dev/null 2>&1; then
+    printf '%s\n' "$line"
+    return 0
+  fi
+
   if [[ "${UI_MODE_CURRENT:-operator}" == technical ]]; then
     printf '%s\n' "$line"
     return 0
