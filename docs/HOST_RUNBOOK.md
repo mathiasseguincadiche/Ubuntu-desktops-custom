@@ -24,6 +24,8 @@ Un APPLY réel n'est autorisé qu'après backup Restic externe vérifié sur le 
 
 Avant l'ouverture du runtime réel, un second inventaire read-only `reports/<RUN_ID>-preapply-app-packaging-inventory.txt` est obligatoire. Le gate exige strictement `drift=0` et `duplicates=0`. Une application absente mais planifiée (`PLANNED`) est autorisée, car l'APPLY doit précisément l'installer. En revanche, un ancien Snap, Flatpak, DEB/APT ou une mauvaise provenance pour une application gérée bloque l'APPLY **avant la première mutation**. Le projet ne crée donc jamais volontairement un second exemplaire par-dessus un paquet incompatible.
 
+Si le seul blocker est exactement `firefox=duplicate[apt,snap]->vendor-apt`, le menu propose **9) Remediation packaging applicatif pre-APPLY**. Cette voie est distincte du REAL APPLY global et ne traite que cette migration approuvée. Elle exige Firefox complètement fermé et une confirmation exacte, refuse tout profil Firefox natif déjà non vide ou tout Firefox Flatpak, sauvegarde tout le profil Snap dans `~/.local/state/ubuntu-desktops-custom/migration-backups/firefox/`, vérifie son SHA-256, prépare et simule le candidat APT Mozilla, retire le Snap, remplace le paquet de transition Ubuntu par le paquet Mozilla, restaure le profil sous `~/.mozilla/firefox`, puis exige `drift=0` et `duplicates=0`. La sauvegarde n'est pas supprimée automatiquement.
+
 Après la phase HOST, `reports/<RUN_ID>-posthost-app-packaging-inventory.txt` doit afficher `planned=0`, `drift=0` et `duplicates=0`. Toute divergence arrête l'orchestration avant KVM/VM. Ce contrôle est complémentaire des postchecks de chaque module.
 
 ## 3. Matériel et firmware
@@ -84,6 +86,8 @@ Politique retenue :
 - **Flatpak Flathub upstream** : Bitwarden Desktop, OBS Studio et GNOME Extension Manager ;
 - **Snap éditeur** : VLC, afin que VideoLAN distribue directement les versions majeures stables et correctifs associés ;
 - **APT Ubuntu** : LibreOffice, FileZilla, Remmina, Ghostwriter, Ptyxis et Xournal++ lorsque le paquet Resolute est la meilleure option native disponible.
+
+Sur Ubuntu, un paquet `firefox` de version `1:1snap1-*` est le paquet de transition Ubuntu associé au Firefox Snap ; il ne satisfait pas la policy `vendor-apt` Mozilla. Le dépôt Mozilla est piné à priorité 1000 et l'installateur autorise explicitement le remplacement/downgrade de ce seul paquet de transition une fois l'origine Mozilla vérifiée.
 
 Applications explicitement retirées du desired state :
 
