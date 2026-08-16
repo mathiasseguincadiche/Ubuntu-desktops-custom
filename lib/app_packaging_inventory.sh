@@ -117,18 +117,29 @@ app_packaging_manager_summary() {
     "$apt_count" "$snap_count" "$flatpak_system" "$flatpak_user"
 }
 
+app_packaging_report_path() {
+  local label="${1:-}" suffix=''
+  if [[ -n "$label" ]]; then
+    [[ "$label" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || return "${EXIT_INVALID_ARGUMENT:-2}"
+    suffix="-$label"
+  fi
+  printf '%s/%s%s-app-packaging-inventory.txt\n' "${REPORT_ROOT:?}" "${RUN_ID:?}" "$suffix"
+}
+
 app_packaging_inventory_run() {
   app_packaging_reset
+  local report_label="${1:-}"
   local policy report line app mode preferred apt_package snap_name flatpak_id source_hint rationale
   local preferred_manager installed status installed_count source_status
   policy="$(app_packaging_policy_file)"
   [[ -r "$policy" ]] || return 1
 
-  report="${REPORT_ROOT:?}/${RUN_ID:?}-app-packaging-inventory.txt"
+  report="$(app_packaging_report_path "$report_label")" || return "$?"
   APP_PACKAGING_REPORT="$report"
 
   {
     printf '%s\n' '=== UBUNTU-DESKTOPS-CUSTOM APPLICATION PACKAGING INVENTORY ==='
+    [[ -z "$report_label" ]] || printf 'Stage: %s\n' "$report_label"
     printf 'Run ID: %s\n' "$RUN_ID"
     printf 'Policy: %s\n' "$policy"
     printf 'Managers: %s\n\n' "$(app_packaging_manager_summary)"
@@ -207,4 +218,50 @@ app_packaging_inventory_run() {
       "$APP_PACKAGING_PRESERVED" "$APP_PACKAGING_DRIFT" "$APP_PACKAGING_DUPLICATES"
     printf '%s\n' 'READ-ONLY: no package, snap or flatpak was installed, removed, refreshed or migrated.'
   } > "$report"
+}
+
+app_packaging_issue_summary() {
+  if (( ${#APP_PACKAGING_ISSUES[@]} == 0 )); then
+    printf '%s\n' 'none'
+    return 0
+  fi
+  local IFS=';'
+  printf '%s\n' "${APP_PACKAGING_ISSUES[*]}"
+}
+
+app_packaging_require_preapply_clean() {
+  if ! app_packaging_inventory_run preapply; then
+    printf '%s\n' 'ERROR: application packaging preflight could not be evaluated.' >&2
+    return "${EXIT_PRECHECK_FAILED:-3}"
+  fi
+
+  if (( APP_PACKAGING_DRIFT > 0 || APP_PACKAGING_DUPLICATES > 0 )); then
+    printf 'ERROR: REAL APPLY blocked by application packaging policy: drift=%d duplicates=%d.\n' \
+      "$APP_PACKAGING_DRIFT" "$APP_PACKAGING_DUPLICATES" >&2
+    printf 'Issues: %s\n' "$(app_packaging_issue_summary)" >&2
+    printf 'Read-only report: %s\n' "$APP_PACKAGING_REPORT" >&2
+    printf '%s\n' 'Resolve every conflicting package/source explicitly before REAL APPLY. No mutation has been executed by this gate.' >&2
+    return "${EXIT_SECURITY_BLOCK:-8}"
+  fi
+
+  printf 'APP PACKAGING PRE-APPLY: CLEAN | planned=%d | drift=0 | duplicates=0\n' "$APP_PACKAGING_PLANNED"
+  printf 'Read-only report: %s\n' "$APP_PACKAGING_REPORT"
+}
+
+app_packaging_require_posthost_converged() {
+  if ! app_packaging_inventory_run posthost; then
+    printf '%s\n' 'ERROR: post-HOST application packaging inventory could not be evaluated.' >&2
+    return "${EXIT_POSTCHECK_FAILED:-6}"
+  fi
+
+  if (( APP_PACKAGING_DRIFT > 0 || APP_PACKAGING_DUPLICATES > 0 || APP_PACKAGING_PLANNED > 0 )); then
+    printf 'ERROR: HOST packaging convergence incomplete: planned=%d drift=%d duplicates=%d.\n' \
+      "$APP_PACKAGING_PLANNED" "$APP_PACKAGING_DRIFT" "$APP_PACKAGING_DUPLICATES" >&2
+    printf 'Issues: %s\n' "$(app_packaging_issue_summary)" >&2
+    printf 'Post-HOST report: %s\n' "$APP_PACKAGING_REPORT" >&2
+    return "${EXIT_POSTCHECK_FAILED:-6}"
+  fi
+
+  printf 'APP PACKAGING POST-HOST: CONVERGED | planned=0 | drift=0 | duplicates=0\n'
+  printf 'Post-HOST report: %s\n' "$APP_PACKAGING_REPORT"
 }

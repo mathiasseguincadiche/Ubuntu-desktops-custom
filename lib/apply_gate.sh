@@ -72,6 +72,19 @@ apply_gate_verify_backup_proof() {
   (( age >= 0 && age <= max_age )) || return "$EXIT_SECURITY_BLOCK"
 }
 
+apply_gate_verify_app_packaging_preflight() {
+  local rc
+  is_true "${REAL_APPLY_REQUIRE_CLEAN_APP_PACKAGING:-true}" || return 0
+  if app_packaging_require_preapply_clean; then
+    log_info ENGINE 'Application packaging gate clean: zero DRIFT and zero DUPLICATE before mutation.'
+    return 0
+  else
+    rc=$?
+    log_error ENGINE 'REAL APPLY requires zero application packaging DRIFT and zero DUPLICATE before any mutation.'
+    return "$rc"
+  fi
+}
+
 apply_gate_require_tty() {
   is_true "${REAL_APPLY_REQUIRE_TTY:-true}" || return 0
   [[ -t 0 && -t 1 ]] || return "$EXIT_SECURITY_BLOCK"
@@ -105,6 +118,7 @@ apply_gate_check() {
       return "$EXIT_SECURITY_BLOCK"
     }
   fi
+  apply_gate_verify_app_packaging_preflight || return "$?"
   apply_gate_require_exact_confirmation || {
     log_error ENGINE 'REAL APPLY confirmation phrase rejected.'
     return "$EXIT_SECURITY_BLOCK"

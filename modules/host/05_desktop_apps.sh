@@ -65,7 +65,7 @@ host_apps_postcheck() {
     return 0
   fi
 
-  local cmd
+  local cmd app_id
   for cmd in firefox code brave-browser desktopeditors filezilla remmina libreoffice ghostwriter xournalpp flatpak; do
     command -v "$cmd" >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
   done
@@ -76,6 +76,13 @@ host_apps_postcheck() {
   ! dpkg-query -W -f='${Status}\n' pdfarranger 2>/dev/null | grep -Fxq 'install ok installed' || return "$EXIT_POSTCHECK_FAILED"
   if command -v snap >/dev/null 2>&1; then
     ! snap list thunderbird >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+    ! snap list pdfarranger >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+  fi
+  if command -v flatpak >/dev/null 2>&1; then
+    for app_id in org.mozilla.Thunderbird com.github.jeromerobert.pdfarranger; do
+      ! flatpak info --system "$app_id" >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+      ! flatpak info --user "$app_id" >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+    done
   fi
   [[ ! -e /etc/brave/policies/managed/20-duckduckgo.json ]] || return "$EXIT_POSTCHECK_FAILED"
   if [[ -s /etc/firefox/policies/policies.json ]]; then

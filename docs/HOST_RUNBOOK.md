@@ -22,6 +22,10 @@ git pull --ff-only
 
 Un APPLY réel n'est autorisé qu'après backup Restic externe vérifié sur le même commit.
 
+Avant l'ouverture du runtime réel, un second inventaire read-only `reports/<RUN_ID>-preapply-app-packaging-inventory.txt` est obligatoire. Le gate exige strictement `drift=0` et `duplicates=0`. Une application absente mais planifiée (`PLANNED`) est autorisée, car l'APPLY doit précisément l'installer. En revanche, un ancien Snap, Flatpak, DEB/APT ou une mauvaise provenance pour une application gérée bloque l'APPLY **avant la première mutation**. Le projet ne crée donc jamais volontairement un second exemplaire par-dessus un paquet incompatible.
+
+Après la phase HOST, `reports/<RUN_ID>-posthost-app-packaging-inventory.txt` doit afficher `planned=0`, `drift=0` et `duplicates=0`. Toute divergence arrête l'orchestration avant KVM/VM. Ce contrôle est complémentaire des postchecks de chaque module.
+
 ## 3. Matériel et firmware
 
 Contrôles utiles :
@@ -83,8 +87,8 @@ Politique retenue :
 
 Applications explicitement retirées du desired state :
 
-- **Thunderbird** : remplacé par Proton Mail. L'APPLY retire le paquet/application si présent mais préserve les profils et données utilisateur ;
-- **PDF Arranger** : retiré du poste et de la policy de packaging ;
+- **Thunderbird** : remplacé par Proton Mail. L'APPLY retire le paquet/application s'il est présent en APT, Snap ou Flatpak et préserve les données utilisateur gérées hors paquet ;
+- **PDF Arranger** : retiré du poste et de la policy de packaging ; les variantes APT/Snap/Flatpak détectables sont retirées ;
 - **DuckDuckGo** : aucune extension, aucun moteur de recherche forcé et aucun navigateur tiers ne sont gérés par le projet. Une ancienne policy DuckDuckGo créée par une version précédente du dépôt est retirée sans toucher aux autres réglages navigateur.
 
 Cas particuliers documentés :
@@ -96,7 +100,7 @@ Cas particuliers documentés :
 - Bitwarden n'a pas un format Linux possédant simultanément chaque fonctionnalité. Flatpak est retenu pour mises à jour automatiques, biométrie, intégration navigateur et isolation ; le Direct Importer reste spécifique à AppImage ;
 - Proton Mail Linux reste présenté comme bêta par Proton, mais Proton publie des releases Linux marquées `Stable` dans son manifeste de mise à jour. Le projet ne sélectionne que cette catégorie et vérifie le SHA-512 avant installation.
 
-Une application déjà installée via un autre gestionnaire ou une mauvaise provenance est signalée `DRIFT`. Plusieurs sources donnent `DUPLICATE`. Les installateurs du projet refusent les migrations cross-manager sensibles, sauf les éléments explicitement retirés par décision de workstation. Les profils Thunderbird et les policies navigateur non liées à DuckDuckGo ne sont pas effacés.
+Une application déjà installée via un autre gestionnaire ou une mauvaise provenance est signalée `DRIFT`. Plusieurs sources donnent `DUPLICATE`. Ces deux états sont désormais des **blockers globaux du REAL APPLY avant toute mutation**. Le nettoyage/migration doit donc être explicite et contrôlé ; aucun installateur n'est autorisé à empiler silencieusement le format préféré sur une installation incompatible. Après HOST, toute application encore `PLANNED`, `DRIFT` ou `DUPLICATE` fait échouer le post-gate global.
 
 ## 7. Terminal et shell
 
@@ -135,4 +139,4 @@ Conserver les rapports du projet dans `reports/` et les logs dans `logs/` avant 
 
 ## 10. Validation HOST
 
-Le HOST est considéré prêt uniquement après validation de ses contrats et du diagnostic global. Une panne HOST doit bloquer les phases KVM/VM dépendantes plutôt que d'être contournée.
+Le HOST est considéré prêt uniquement après validation de ses contrats et du diagnostic global. Une panne HOST doit bloquer les phases KVM/VM dépendantes plutôt que d'être contournée. Pour le packaging applicatif, le contrat de sortie HOST est strict : `planned=0`, `drift=0`, `duplicates=0`.

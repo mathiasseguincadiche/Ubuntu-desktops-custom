@@ -36,7 +36,8 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 @test "retired app cleanup removes packages and stale DuckDuckGo policy but preserves user data" {
   script="$REPO_ROOT/scripts/vendor/remove_retired_desktop_apps.sh"
   grep -F 'thunderbird pdfarranger' "$script"
-  grep -F 'snap remove thunderbird' "$script"
+  grep -F 'for snap_name in thunderbird pdfarranger' "$script"
+  grep -F 'snap remove "$snap_name"' "$script"
   grep -F 'org.mozilla.Thunderbird' "$script"
   grep -F 'com.github.jeromerobert.pdfarranger' "$script"
   grep -F '20-duckduckgo.json' "$script"

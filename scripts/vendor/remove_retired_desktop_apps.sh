@@ -19,8 +19,12 @@ if command -v apt-get >/dev/null 2>&1; then
   fi
 fi
 
-if command -v snap >/dev/null 2>&1 && snap list thunderbird >/dev/null 2>&1; then
-  snap remove thunderbird
+if command -v snap >/dev/null 2>&1; then
+  for snap_name in thunderbird pdfarranger; do
+    if snap list "$snap_name" >/dev/null 2>&1; then
+      snap remove "$snap_name"
+    fi
+  done
 fi
 
 if command -v flatpak >/dev/null 2>&1; then
@@ -70,6 +74,6 @@ if [[ -s "$FIREFOX_POLICY" ]] && command -v jq >/dev/null 2>&1; then
   install -m 0644 "$tmp_policy" "$FIREFOX_POLICY"
 fi
 
-printf '%s\n' 'Retired applications removed: Thunderbird and PDF Arranger (when present).'
+printf '%s\n' 'Retired applications removed from APT/Snap/Flatpak when present: Thunderbird and PDF Arranger.'
 printf '%s\n' 'Retired DuckDuckGo managed browser policy removed (when present).'
 printf '%s\n' 'User data, Thunderbird profiles and unrelated browser policies were preserved.'
