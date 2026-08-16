@@ -17,6 +17,7 @@ Ce guide décrit la procédure supportée par l'état courant de `main`. La vers
 - Dépôt cloné localement.
 - Accès `sudo` pour l'opérateur.
 - Cible de sauvegarde externe disponible avant l'APPLY réel.
+- `restic` disponible pour le workflow de backup pré-APPLY.
 
 Sur une installation Ubuntu fraîche, Git peut être installé avec :
 
@@ -93,7 +94,43 @@ La preuve de dry-run doit correspondre au commit courant et à un worktree Git s
 
 ## 5. Backup pré-APPLY
 
-Configurer le dépôt Restic externe et son mot de passe uniquement au runtime. La variable canonique du projet pour la cible est `BACKUP_REPOSITORY_RUNTIME`; `RESTIC_REPOSITORY` est accepté comme alias standard Restic.
+Le chemin normal est entièrement piloté par le projet. Depuis :
+
+```bash
+./menu.sh
+```
+
+sélectionner :
+
+```text
+3) Préparer et vérifier le backup pré-APPLY (Restic)
+```
+
+Le workflow `prepare-preapply-backup.sh` exige d'abord la preuve de dry-run du commit courant. Il détecte automatiquement une cible locale montée uniquement si son stockage est prouvé USB/removable/hotplug, refuse le filesystem système et les SSD internes, puis utilise par défaut :
+
+```text
+<cible-externe>/Backup-Ubuntu/restic
+```
+
+Aucun formatage ni repartitionnement n'est effectué. Les autres données déjà présentes sur le disque externe restent hors du dépôt Restic.
+
+Si plusieurs disques externes admissibles sont montés, le workflow bloque au lieu de choisir arbitrairement. L'opérateur peut alors préciser le point de montage pour cette exécution :
+
+```bash
+BACKUP_TARGET_MOUNT_RUNTIME=/chemin/du/disque/externe ./prepare-preapply-backup.sh
+```
+
+Lors de la première initialisation, une passphrase Restic d'au moins 16 caractères est demandée de manière masquée. Le fichier secret local est créé par défaut dans `~/.config/ubuntu-desktops-custom/secrets/restic-password`, avec des permissions privées. La passphrase doit être conservée séparément pour permettre une restauration après perte de la machine.
+
+Le workflow capture ensuite les fichiers Git suivis, les configurations HOST reproductibles sélectionnées, l'inventaire machine et les sauvegardes de migration disponibles. Il crée un snapshot, exécute un test de restauration granulaire, puis appelle le verifier canonique qui termine par `restic check --read-data` et crée la preuve `BACKUP_VERIFIED`.
+
+Verdict attendu :
+
+```text
+PRE-APPLY BACKUP READY
+```
+
+Pour l'administration avancée d'un dépôt Restic déjà existant, le verifier peut toujours être appelé directement. La variable canonique du projet pour la cible est `BACKUP_REPOSITORY_RUNTIME`; `RESTIC_REPOSITORY` est accepté comme alias standard Restic :
 
 ```bash
 export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic
@@ -105,7 +142,19 @@ Le script refuse des valeurs divergentes si `BACKUP_REPOSITORY_RUNTIME` et `REST
 
 ## 6. Exécution réelle
 
-Uniquement lorsque diagnostic, dry-run et backup sont propres :
+Uniquement lorsque diagnostic, dry-run et backup sont propres, revenir dans :
+
+```bash
+./menu.sh
+```
+
+puis sélectionner :
+
+```text
+4) Installation reelle protegee (--apply)
+```
+
+Équivalent direct :
 
 ```bash
 ./install.sh --apply
