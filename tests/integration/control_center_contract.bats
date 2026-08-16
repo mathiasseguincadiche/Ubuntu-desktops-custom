@@ -35,9 +35,11 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F "pretest_record WARN 'RUNTIME INPUTS'" "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
-@test "menu exposes dry-run but no real apply action" {
+@test "menu exposes dry-run and delegates real apply to guarded installer" {
   grep -F 'Dry-run complet HOST -> KVM -> VM_DEVOPS -> BACKUP' "$REPO_ROOT/menu.sh"
-  run grep -Ei '^[[:space:]]*[0-9]+\).*(appliquer|apply reel|apply réel|installation reelle|installation réelle|restaurer|sauvegarder|supprimer)' "$REPO_ROOT/menu.sh"
+  grep -F 'Installation reelle protegee (--apply)' "$REPO_ROOT/menu.sh"
+  grep -F '"$REPO_ROOT/install.sh" --apply' "$REPO_ROOT/menu.sh"
+  run grep -E '^[[:space:]]*(sudo[[:space:]]+)?(apt|apt-get|virsh|systemctl|nft)[[:space:]]+.*(install|upgrade|define|create|start|enable|delete|destroy|flush)' "$REPO_ROOT/menu.sh"
   [ "$status" -ne 0 ]
 }
 
