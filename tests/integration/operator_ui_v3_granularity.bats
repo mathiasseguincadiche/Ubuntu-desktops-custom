@@ -71,9 +71,12 @@ setup() {
   grep -F 'source "$REPO_ROOT/lib/live_progress.sh"' "$bootstrap"
   grep -F 'source "$REPO_ROOT/lib/runner.sh"' "$bootstrap"
 
-  details_line="$(grep -n 'operator_details.sh' "$bootstrap" | cut -d: -f1)"
-  live_line="$(grep -n 'live_progress.sh' "$bootstrap" | cut -d: -f1)"
-  runner_line="$(grep -n 'runner.sh' "$bootstrap" | cut -d: -f1)"
+  details_line="$(grep -n '^[[:space:]]*source .*operator_details\.sh' "$bootstrap" | head -1 | cut -d: -f1)"
+  live_line="$(grep -n '^[[:space:]]*source .*live_progress\.sh' "$bootstrap" | head -1 | cut -d: -f1)"
+  runner_line="$(grep -n '^[[:space:]]*source .*runner\.sh' "$bootstrap" | head -1 | cut -d: -f1)"
+  [ -n "$details_line" ]
+  [ -n "$live_line" ]
+  [ -n "$runner_line" ]
   [ "$details_line" -lt "$live_line" ]
   [ "$live_line" -lt "$runner_line" ]
 }
