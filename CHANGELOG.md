@@ -12,6 +12,7 @@
 - Thunderbird et PDF Arranger retirés du desired state ; aucune intégration DuckDuckGo n'est installée ou imposée par le projet.
 - Diagnostic read-only des gestionnaires et de la provenance APT/Flatpak, avec détection `DRIFT`/`DUPLICATE` et migrations cross-manager fail-closed hors retraits explicitement décidés.
 - Gate global de packaging : REAL APPLY bloqué avant toute mutation si `DRIFT>0` ou `DUPLICATE>0`; contrôle post-HOST obligatoire avec `PLANNED=0`, `DRIFT=0`, `DUPLICATE=0`.
+- Remédiation pré-APPLY dédiée au cas Firefox Ubuntu/Snap : fermeture obligatoire de Firefox, sauvegarde complète du profil Snap avec SHA-256, staging du dépôt Mozilla, retrait du Snap, remplacement du paquet de transition Ubuntu par le Firefox Mozilla APT, restauration du profil puis contrôle `DRIFT=0` / `DUPLICATE=0`; la sauvegarde est conservée.
 - Nettoyage des applications retirées contrôlé sur APT/Snap/Flatpak afin d'éviter les paquets desktop parasites.
 - Socle gaming Steam, GameMode, Gamescope, MangoHud/MangoApp et runtime Vulkan.
 - Observabilité matérielle NVMe/SMART, températures, PCI/USB, réseau, audio et webcam.
