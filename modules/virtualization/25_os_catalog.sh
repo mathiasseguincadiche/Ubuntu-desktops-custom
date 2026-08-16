@@ -26,7 +26,7 @@ EOF
 }
 
 kvm_catalog_apply() {
-  run_mutating KVM "$REPO_ROOT/scripts/kvm/refresh_os_catalog.sh" || return "$EXIT_APPLY_FAILED"
+  run_mutating KVM bash "$REPO_ROOT/scripts/kvm/refresh_os_catalog.sh" || return "$EXIT_APPLY_FAILED"
 }
 
 kvm_catalog_postcheck() {
