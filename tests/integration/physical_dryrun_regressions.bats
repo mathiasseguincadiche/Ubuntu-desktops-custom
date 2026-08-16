@@ -47,7 +47,5 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *$'else\n    rc=$?'* ]]
   [[ "$output" == *"VERDICT: FULL DRY-RUN FAIL (rc=%d)"* ]]
-
-  run grep -E '^  rc=\$\?$' "$REPO_ROOT/install.sh"
-  [ "$status" -ne 0 ]
+  [[ "$output" == *'exit "$rc"'* ]]
 }
