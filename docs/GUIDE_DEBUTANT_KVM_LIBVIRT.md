@@ -1,251 +1,151 @@
-# Guide débutant KVM/libvirt — Ubuntu-desktops-custom V1.0.0
+# Guide débutant KVM/libvirt — Ubuntu-desktops-custom
 
-Ce guide sert de mémo CLI pour administrer les VM sans dépendre de virt-manager. Les commandes utilisent la connexion système `qemu:///system`, le réseau `devops-nat` et la VM de référence `ubuntu-devops`.
+Ce guide sert de mémo CLI pour administrer les VM sans dépendre de virt-manager. Les commandes utilisent `qemu:///system` et le réseau isolé `devops-nat`.
 
-> Règle : commencer par les commandes de lecture. Les commandes marquées **MUTATION** ou **DESTRUCTIF** modifient l'état.
+> Règle : commencer par les commandes de lecture. `shutdown` est préféré à `destroy`. Un snapshot ne remplace jamais un backup.
 
-## 1. Comprendre les composants
+## 1. Architecture des VM
 
-- **KVM** : accélération de virtualisation du noyau Linux.
-- **QEMU** : moteur d'exécution des machines virtuelles.
-- **libvirt** : couche d'administration des VM, réseaux et stockages.
-- **virsh** : CLI principale de libvirt.
-- **virt-manager** : interface graphique optionnelle, utile pour inspection ponctuelle.
+Trois profils de référence existent :
 
-Le projet administre les VM principalement avec `virsh -c qemu:///system`.
+| Profil | Rôle | vCPU | RAM | Disque | Création automatique |
+|---|---|---:|---:|---:|---|
+| `ubuntu-devops` | Ubuntu Server 26.04 CLI / DevOps | 8 | 16 Go | 200 Go | Oui, par l'installation principale |
+| `ubuntu-desktop` | Ubuntu Desktop 26.04 GNOME | 6 | 8 Go | 100 Go | Non, à la demande |
+| `windows-11` | Windows 11 Desktop | 8 | 16 Go | 200 Go | Non, à la demande |
 
-## 2. Vérifier le socle
+Les profils Desktop sont optionnels et n'alourdissent pas l'installation initiale.
+
+## 2. Accélération graphique Ubuntu Desktop
+
+Le profil Ubuntu Desktop utilise la meilleure pile graphique virtuelle générique prévue par le projet sans passthrough GPU :
+
+- machine Q35 et CPU `host-passthrough` ;
+- `virtio-gpu` ;
+- accélération 3D VirGL/OpenGL ;
+- render node DRM du HOST (`/dev/dri/renderD128`) après validation ;
+- SPICE pour l'affichage et l'intégration desktop ;
+- agent SPICE pour presse-papiers/redimensionnement ;
+- PipeWire pour l'audio ;
+- redirection USB optionnelle.
+
+Cette configuration accélère réellement le bureau GNOME via le GPU du HOST tout en conservant le GPU physique disponible pour Ubuntu HOST. Ce n'est pas du GPU passthrough/VFIO : une Arc B580 entière ne peut pas être simultanément attribuée exclusivement à une VM et utilisée normalement par le HOST. Le projet privilégie donc virtio-gpu/VirGL pour la VM Desktop générale.
+
+Avant création, le render node doit être détecté et accessible. Le chemin configuré n'est jamais supposé valide sans précheck.
+
+## 3. Windows 11
+
+Le profil Windows 11 prévoit :
+
+- Q35 ;
+- CPU `host-passthrough` ;
+- 8 vCPU / 16 Go / 200 Go QCOW2 ;
+- UEFI avec Secure Boot lorsque le firmware libvirt disponible le permet ;
+- TPM 2.0 virtuel ;
+- disque et réseau VirtIO ;
+- ISO de pilotes VirtIO obligatoire ;
+- SPICE/virtio pour l'affichage ;
+- audio PipeWire et redirection USB.
+
+L'ISO Windows n'est jamais téléchargée ou contournée silencieusement : elle est fournie au runtime par l'opérateur et validée avant création.
+
+## 4. Afficher les profils sans créer de VM
+
+```bash
+./scripts/kvm/create-vm.sh ubuntu-desktop --plan
+./scripts/kvm/create-vm.sh windows-11 --plan
+```
+
+Le planificateur est volontairement non-mutant tant que les préchecks ISO, firmware, render node et stockage ne sont pas satisfaits.
+
+## 5. Vérifier KVM
 
 ```bash
 ls -l /dev/kvm
 virsh -c qemu:///system version
 virsh -c qemu:///system list --all
-```
-
-Pour le CPU AMD :
-
-```bash
 grep -E -m1 'svm' /proc/cpuinfo
 ```
 
-## 3. Lister les VM
+## 6. Administration CLI
 
 ```bash
 virsh -c qemu:///system list --all
 virsh -c qemu:///system dominfo ubuntu-devops
 virsh -c qemu:///system domstate ubuntu-devops
-```
-
-## 4. Démarrer et arrêter
-
-**MUTATION — démarrage :**
-
-```bash
 virsh -c qemu:///system start ubuntu-devops
-```
-
-**MUTATION — arrêt propre :**
-
-```bash
 virsh -c qemu:///system shutdown ubuntu-devops
+virsh -c qemu:///system reboot ubuntu-devops
 ```
 
-Attendre l'arrêt :
-
-```bash
-watch -n 2 'virsh -c qemu:///system domstate ubuntu-devops'
-```
-
-**DESTRUCTIF pour l'état mémoire — dernier recours uniquement :**
+Dernier recours uniquement :
 
 ```bash
 virsh -c qemu:///system destroy ubuntu-devops
 ```
 
-`destroy` équivaut à couper brutalement l'alimentation virtuelle ; il ne supprime pas le disque mais peut corrompre le guest.
+`destroy` coupe brutalement l'alimentation virtuelle.
 
-## 5. Redémarrer une VM
-
-```bash
-virsh -c qemu:///system reboot ubuntu-devops
-```
-
-Si le guest ne répond pas au reboot ACPI, diagnostiquer avant d'utiliser `destroy`.
-
-## 6. Réseau devops-nat
-
-Contrat :
+## 7. Réseau devops-nat
 
 - réseau : `192.168.50.0/24` ;
-- passerelle HOST : `192.168.50.254` sur `virbr50` ;
+- passerelle HOST : `192.168.50.254` ;
 - DHCP : `192.168.50.100-200` ;
 - DNS : `9.9.9.9`, `1.1.1.1` ;
+- HOST ↔ VM : autorisé ;
+- VM ↔ VM : autorisé ;
 - VM → Internet : autorisé ;
-- HOST ↔ VM et VM ↔ VM : autorisés ;
-- VM → LAN physique, LAN → VM et Internet → VM : bloqués.
-
-Lecture :
+- VM → LAN physique : bloqué ;
+- LAN → VM : bloqué ;
+- Internet → VM : bloqué.
 
 ```bash
 virsh -c qemu:///system net-list --all
 virsh -c qemu:///system net-info devops-nat
-virsh -c qemu:///system net-dumpxml devops-nat
+virsh -c qemu:///system net-dhcp-leases devops-nat
 ip -4 addr show virbr50
 ```
 
-Ne jamais faire `nft flush ruleset` pour dépanner ce réseau.
+Ne jamais faire `nft flush ruleset` et ne pas bridger une VM au LAN physique pour contourner le contrat.
 
-## 7. Trouver l'IP d'une VM
+## 8. Trouver l'IP et se connecter
 
 ```bash
 virsh -c qemu:///system domiflist ubuntu-devops
 virsh -c qemu:///system domifaddr ubuntu-devops
 virsh -c qemu:///system net-dhcp-leases devops-nat
-```
-
-La réservation DHCP déterministe est la méthode de référence du projet.
-
-## 8. SSH vers ubuntu-devops
-
-```bash
 ssh ubuntu@<IP_VM>
 ```
 
-Diagnostic SSH :
+VS Code Remote SSH reste la méthode normale pour travailler dans `ubuntu-devops` depuis le HOST.
 
-```bash
-ssh -vv ubuntu@<IP_VM>
-```
-
-Ne jamais placer une clé privée SSH dans Git.
-
-## 9. VS Code Remote SSH
-
-Sur le HOST, installer/utiliser VS Code avec l'extension Remote - SSH. Ajouter si nécessaire une entrée locale :
-
-```text
-Host ubuntu-devops
-    HostName <IP_VM>
-    User ubuntu
-    IdentityFile ~/.ssh/<cle_privee>
-```
-
-Puis ouvrir `ubuntu-devops` avec Remote - SSH. Les outils DevOps restent dans la VM.
-
-## 10. Pools de stockage
+## 9. Stockage et XML
 
 ```bash
 virsh -c qemu:///system pool-list --all
-virsh -c qemu:///system pool-info <pool>
-virsh -c qemu:///system vol-list <pool>
-```
-
-Afficher le chemin d'un volume :
-
-```bash
-virsh -c qemu:///system vol-path <volume> --pool <pool>
-```
-
-Avant toute suppression, vérifier le domaine qui utilise le volume.
-
-## 11. Disques d'une VM
-
-```bash
+virsh -c qemu:///system vol-list devops-data
 virsh -c qemu:///system domblklist ubuntu-devops --details
-```
-
-VM arrêtée, inspection QCOW2 :
-
-```bash
-qemu-img info /chemin/vers/disque.qcow2
-qemu-img check /chemin/vers/disque.qcow2
-```
-
-Ne jamais lancer une réparation destructive sur un disque sans backup vérifié.
-
-## 12. XML libvirt
-
-Lecture :
-
-```bash
 virsh -c qemu:///system dumpxml ubuntu-devops
-virsh -c qemu:///system net-dumpxml devops-nat
 ```
 
-Exporter avant une modification manuelle :
+VM arrêtée :
 
 ```bash
-virsh -c qemu:///system dumpxml ubuntu-devops > ubuntu-devops.xml
+qemu-img info /chemin/disque.qcow2
+qemu-img check /chemin/disque.qcow2
 ```
 
-Le projet reste la source de vérité ; éviter les modifications manuelles non reproduites dans le dépôt.
-
-## 13. Autostart
-
-Lecture :
-
-```bash
-virsh -c qemu:///system dominfo ubuntu-devops | grep -i autostart
-virsh -c qemu:///system net-info devops-nat | grep -i autostart
-```
-
-**MUTATION :**
-
-```bash
-virsh -c qemu:///system autostart ubuntu-devops
-virsh -c qemu:///system net-autostart devops-nat
-```
-
-Ne l'activer que si cela correspond au comportement souhaité.
-
-## 14. Console
-
-```bash
-virsh -c qemu:///system console ubuntu-devops
-```
-
-Quitter généralement la console virsh avec `Ctrl+]`.
-
-SSH reste la méthode normale d'administration.
-
-## 15. Création de VM
-
-Pour les VM gérées par ce projet, ne pas improviser une commande `virt-install` manuelle : utiliser l'orchestration et les templates du dépôt afin de conserver cloud-init, réseau, identité, stockage et rollback cohérents.
-
-Avant création :
-
-```bash
-./diagnostic.sh
-./install.sh --dry-run
-```
-
-## 16. Snapshots : prudence
-
-Lister :
+## 10. Snapshots, clonage et backup
 
 ```bash
 virsh -c qemu:///system snapshot-list ubuntu-devops
 ```
 
-Les snapshots ne remplacent pas un backup. Éviter d'empiler des snapshots QCOW2 sans stratégie de consolidation. Pour le Disaster Recovery, utiliser le contrat Restic/backup du projet.
+Un clone doit recevoir une identité libvirt, une MAC et une réservation DHCP distinctes. Ne jamais dupliquer simplement un QCOW2 et démarrer deux VM avec la même identité.
 
-## 17. Backup d'une VM
+Pour une sauvegarde sûre : arrêt propre, confirmation `shut off`, sauvegarde des métadonnées libvirt et du QCOW2 via le workflow du projet, puis vérification d'intégrité. Une copie brute d'un QCOW2 actif est interdite.
 
-Baseline sûre :
-
-1. arrêt propre de la VM ;
-2. vérifier qu'elle est `shut off` ;
-3. sauvegarder métadonnées libvirt + QCOW2 via le workflow prévu ;
-4. vérifier l'intégrité du backup ;
-5. seulement ensuite redémarrer si nécessaire.
-
-Une copie brute d'un QCOW2 actif est interdite.
-
-## 18. Clonage
-
-Un clone doit avoir au minimum une identité libvirt, MAC, cloud-init et réservation DHCP distinctes. Ne pas dupliquer simplement un QCOW2 puis démarrer deux VM avec la même identité.
-
-## 19. Dépannage VM qui ne démarre pas
+## 11. Dépannage
 
 ```bash
 virsh -c qemu:///system domstate ubuntu-devops
@@ -253,13 +153,10 @@ virsh -c qemu:///system dominfo ubuntu-devops
 virsh -c qemu:///system domblklist ubuntu-devops --details
 virsh -c qemu:///system domiflist ubuntu-devops
 virsh -c qemu:///system dumpxml ubuntu-devops
+journalctl -b --no-pager | grep -Ei 'libvirt|qemu|kvm'
 ```
 
-Puis contrôler les journaux libvirt/QEMU avec `journalctl` et l'état du pool. Ne supprimer aucune ressource avant d'avoir identifié la cause.
-
-## 20. Dépannage Internet/DNS
-
-Depuis la VM :
+Dans une VM Linux :
 
 ```bash
 ip route
@@ -268,17 +165,9 @@ ping -c 2 9.9.9.9
 ping -c 2 1.1.1.1
 ```
 
-Depuis le HOST :
+## 12. Commandes DevOps de référence
 
-```bash
-virsh -c qemu:///system net-info devops-nat
-virsh -c qemu:///system net-dhcp-leases devops-nat
-ip addr show virbr50
-```
-
-Ne jamais résoudre un problème en bridgeant la VM vers le LAN physique : cela casserait le contrat d'isolation.
-
-## 21. Commandes utiles dans ubuntu-devops
+Dans `ubuntu-devops` :
 
 ```bash
 git --version
@@ -296,41 +185,17 @@ trivy --version
 shellcheck --version
 hadolint --version
 checkov --version
-```
-
-Smoke test :
-
-```bash
 docker run --rm hello-world
 ```
 
-## 22. Mémo CLI
+## 13. À retenir
 
-```bash
-# VM
-virsh -c qemu:///system list --all
-virsh -c qemu:///system start ubuntu-devops
-virsh -c qemu:///system shutdown ubuntu-devops
-virsh -c qemu:///system dominfo ubuntu-devops
-virsh -c qemu:///system domifaddr ubuntu-devops
-
-# Réseau
-virsh -c qemu:///system net-list --all
-virsh -c qemu:///system net-info devops-nat
-virsh -c qemu:///system net-dhcp-leases devops-nat
-
-# Stockage
-virsh -c qemu:///system pool-list --all
-virsh -c qemu:///system vol-list <pool>
-virsh -c qemu:///system domblklist ubuntu-devops --details
-```
-
-## 23. À retenir
-
-- `virsh -c qemu:///system` est l'interface CLI principale.
-- `shutdown` avant `destroy`.
-- Ne jamais copier à chaud un QCOW2 actif.
-- Ne jamais contourner `devops-nat` par un bridge LAN.
+- `ubuntu-devops` reste la VM créée automatiquement par l'installation principale.
+- Ubuntu Desktop et Windows 11 sont des profils optionnels à la demande.
+- `virsh -c qemu:///system` reste l'interface d'administration principale.
+- virt-manager reste une interface graphique de secours/inspection.
+- Ubuntu Desktop utilise virtio-gpu + VirGL/3D + SPICE plutôt qu'un passthrough GPU exclusif.
+- Windows 11 conserve TPM 2.0, UEFI/Secure Boot et VirtIO.
+- Toutes les VM restent par défaut sur `devops-nat`.
 - Un snapshot n'est pas un backup.
-- Toujours conserver diagnostic, logs et rapports avant une correction importante.
-- Utiliser `RUNBOOK_OPERATIONS.md` pour les procédures d'exploitation et de Disaster Recovery.
+- Utiliser `RUNBOOK_OPERATIONS.md` pour exploitation et Disaster Recovery.
