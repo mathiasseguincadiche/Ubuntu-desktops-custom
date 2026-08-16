@@ -17,6 +17,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/config.sh"
   # shellcheck source=lib/ui.sh
   source "$REPO_ROOT/lib/ui.sh"
+  # shellcheck source=lib/live_progress.sh
+  source "$REPO_ROOT/lib/live_progress.sh"
   # shellcheck source=lib/logging.sh
   source "$REPO_ROOT/lib/logging.sh"
   # shellcheck source=lib/state.sh

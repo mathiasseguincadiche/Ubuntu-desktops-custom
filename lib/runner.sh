@@ -9,7 +9,7 @@ _command_string() {
 }
 
 run_command() {
-  local scope="$1" effect="$2" rc
+  local scope="$1" effect="$2" rc live_action=false live_label=''
   shift 2
   [[ "${1:-}" == '--' ]] && shift
 
@@ -36,10 +36,32 @@ run_command() {
       log_error "$scope" "SECURITY_BLOCK mutating command refused: $rendered"
       return "$EXIT_SECURITY_BLOCK"
     fi
+
+    if declare -F ui_live_action_begin >/dev/null 2>&1 && ui_live_progress_enabled; then
+      live_label="$(ui_live_action_label "$scope" "$rendered")"
+      if [[ -n "$live_label" ]]; then
+        ui_live_action_begin "$live_label"
+        live_action=true
+      fi
+    fi
   fi
 
   log_info "$scope" "execute: $rendered"
-  "$@"
+  if "$@"; then
+    rc=0
+  else
+    rc=$?
+  fi
+
+  if [[ "$live_action" == true ]]; then
+    if (( rc == 0 )); then
+      ui_live_action_ok
+    else
+      ui_live_action_fail
+    fi
+  fi
+
+  return "$rc"
 }
 
 run_readonly() {
