@@ -46,13 +46,13 @@ if [[ "$MODE" == '--dry-run' ]]; then
     printf '%s\n' 'VERDICT: FULL DRY-RUN PASS'
     printf 'Report: %s\n' "$report"
     exit 0
+  else
+    rc=$?
+    report="$(orchestrator_report)"
+    printf 'VERDICT: FULL DRY-RUN FAIL (rc=%d)\n' "$rc" >&2
+    printf 'Report: %s\n' "$report" >&2
+    exit "$rc"
   fi
-
-  rc=$?
-  report="$(orchestrator_report)"
-  printf 'VERDICT: FULL DRY-RUN FAIL (rc=%d)\n' "$rc" >&2
-  printf 'Report: %s\n' "$report" >&2
-  exit "$rc"
 fi
 
 printf '%s\n' '=== REAL MACHINE APPLY GATE ==='

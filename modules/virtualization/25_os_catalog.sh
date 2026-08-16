@@ -9,8 +9,19 @@ kvm_catalog_precheck() {
   assert_scope KVM
   [[ -r "$REPO_ROOT/manifests/virtualization/os-catalog.yml" ]] || return "$EXIT_PRECHECK_FAILED"
   [[ -r "$REPO_ROOT/scripts/kvm/refresh_os_catalog.sh" ]] || return "$EXIT_PRECHECK_FAILED"
-  command -v curl >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
   command -v awk >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
+
+  # curl is installed earlier by host.apps during a real APPLY. A full dry-run
+  # intentionally does not mutate the HOST, so absence of curl at this point
+  # must not create a false dependency failure. The catalog refresh itself is
+  # also simulated by run_mutating in dry-run mode.
+  if ! command -v curl >/dev/null 2>&1; then
+    if is_true "${DRY_RUN:-true}"; then
+      log_info KVM 'dry-run: curl runtime requirement deferred; host.apps would install it before real KVM catalog refresh'
+      return 0
+    fi
+    return "$EXIT_PRECHECK_FAILED"
+  fi
 }
 
 kvm_catalog_plan() {
