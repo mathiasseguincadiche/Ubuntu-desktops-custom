@@ -13,6 +13,10 @@ setup() {
     RUN_ID='diagnostic-fixture' \
     bash "$REPO_ROOT/diagnostic.sh"
 
+  if [ "$status" -ne 0 ]; then
+    printf '%s\n' "$output" >&2
+  fi
+
   [ "$status" -eq 0 ]
   [[ "$output" == *"INSTALLER GATE"*"guarded --apply path enforced"* ]]
   [[ "$output" == *"MUTATION BOUNDARIES"*"read-only probes are allowed"* ]]
