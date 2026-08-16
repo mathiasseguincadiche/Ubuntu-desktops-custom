@@ -5,6 +5,7 @@ on:
     paths:
       - 'modules/host/**'
       - 'manifests/host/**'
+      - 'scripts/vendor/**'
       - 'modules/virtualization/**'
       - 'manifests/virtualization/**'
       - 'scripts/kvm/**'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'modules/host/**'
       - 'manifests/host/**'
+      - 'scripts/vendor/**'
       - 'modules/virtualization/**'
       - 'manifests/virtualization/**'
       - 'scripts/kvm/**'
@@ -40,7 +42,10 @@ jobs:
           set -u -o pipefail
           packages=(
             mesa-vulkan-drivers mesa-utils vulkan-tools intel-media-va-driver vainfo intel-gpu-tools
-            gnome-shell-extension-manager
+            ca-certificates curl gnupg jq flatpak software-properties-common
+            filezilla pdfarranger remmina remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-secret
+            libreoffice libreoffice-gnome nautilus-admin nautilus-image-converter
+            gnome-shell-extension-manager ghostwriter
             steam-installer steam-devices gamemode gamescope mangohud mangoapp
             nvme-cli smartmontools lm-sensors lshw usbutils pciutils ethtool powertop v4l-utils
             pipewire-bin wireplumber
@@ -56,6 +61,31 @@ jobs:
               failed=1
             else
               echo "PASS: $package -> $candidate"
+            fi
+          done
+          exit "$failed"
+      - name: Validate preferred OBS and ONLYOFFICE vendor APT sources
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          sudo add-apt-repository -y ppa:obsproject/obs-studio
+
+          curl -fsSLo "$RUNNER_TEMP/onlyoffice.asc" https://download.onlyoffice.com/GPG-KEY-ONLYOFFICE
+          gpg --batch --yes --dearmor --output "$RUNNER_TEMP/onlyoffice.gpg" "$RUNNER_TEMP/onlyoffice.asc"
+          sudo install -m 0644 "$RUNNER_TEMP/onlyoffice.gpg" /usr/share/keyrings/onlyoffice.gpg
+          echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/onlyoffice.gpg] https://download.onlyoffice.com/repo/debian squeeze main' \
+            | sudo tee /etc/apt/sources.list.d/onlyoffice.list >/dev/null
+          sudo apt-get update
+
+          failed=0
+          for package in obs-studio onlyoffice-desktopeditors; do
+            candidate="$(apt-cache policy "$package" 2>/dev/null | awk '/Candidate:/ {print $2; exit}' || true)"
+            if [[ -z "$candidate" || "$candidate" == '(none)' ]]; then
+              echo "MISSING VENDOR CANDIDATE: $package" >&2
+              failed=1
+            else
+              echo "PASS VENDOR CANDIDATE: $package -> $candidate"
             fi
           done
           exit "$failed"
