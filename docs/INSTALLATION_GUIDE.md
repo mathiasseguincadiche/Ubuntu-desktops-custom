@@ -93,13 +93,15 @@ La preuve de dry-run doit correspondre au commit courant et à un worktree Git s
 
 ## 5. Backup pré-APPLY
 
-Configurer le dépôt Restic externe et ses secrets uniquement au runtime, puis exécuter :
+Configurer le dépôt Restic externe et son mot de passe uniquement au runtime. La variable canonique du projet pour la cible est `BACKUP_REPOSITORY_RUNTIME`; `RESTIC_REPOSITORY` est accepté comme alias standard Restic.
 
 ```bash
+export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic
+export RESTIC_PASSWORD_FILE=/chemin/securise/restic-password
 ./verify-preapply-backup.sh
 ```
 
-Le backup doit être vérifié, récent et associé au même commit Git que le dry-run.
+Le script refuse des valeurs divergentes si `BACKUP_REPOSITORY_RUNTIME` et `RESTIC_REPOSITORY` sont définies simultanément. Le backup doit contenir au moins un snapshot, passer `restic check --read-data`, être récent et être associé au même commit Git que le dry-run.
 
 ## 6. Exécution réelle
 
