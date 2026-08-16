@@ -31,7 +31,7 @@ ui_live_action_label() {
     host.multimedia:*) printf '%s\n' 'FFmpeg + GStreamer + PipeWire/WirePlumber' ;;
 
     host.apps:*remove_retired_desktop_apps.sh*) printf '%s\n' 'Nettoyage des applications retirées' ;;
-    host.apps:*apt-get*install*) printf '%s\n' 'Apps Ubuntu — bureautique, RDP, Markdown' ;;
+    host.apps:*apt-get*install*) printf '%s\n' 'Paquets Ubuntu — FileZilla, Remmina, LibreOffice… | bureautique/RDP/Markdown' ;;
     host.apps:*install_mozilla_repo.sh*) printf '%s\n' 'Firefox — dépôt officiel Mozilla' ;;
     host.apps:*install_proton_mail.sh*) printf '%s\n' 'Proton Mail Desktop' ;;
     host.apps:*install_vscode_repo.sh*) printf '%s\n' 'Visual Studio Code — dépôt Microsoft' ;;
