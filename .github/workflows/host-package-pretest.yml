@@ -43,7 +43,7 @@ jobs:
           packages=(
             mesa-vulkan-drivers mesa-utils vulkan-tools intel-media-va-driver vainfo intel-gpu-tools
             ca-certificates curl gnupg jq flatpak software-properties-common
-            filezilla pdfarranger xournalpp remmina remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-secret
+            filezilla xournalpp remmina remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-secret
             libreoffice libreoffice-gnome nautilus-admin nautilus-image-converter
             ghostwriter
             gamemode gamescope mangohud mangoapp
@@ -79,12 +79,6 @@ jobs:
           Types: deb
           URIs: https://packages.mozilla.org/apt
           Suites: mozilla
-          Components: main
-          Signed-By: /etc/apt/keyrings/packages.mozilla.org.asc
-
-          Types: deb
-          URIs: https://packages.mozilla.org/apt
-          Suites: thunderbird-deb
           Components: main
           Signed-By: /etc/apt/keyrings/packages.mozilla.org.asc
           EOF
@@ -127,7 +121,6 @@ jobs:
 
           declare -A expected_origin=(
             [firefox]='packages.mozilla.org'
-            [thunderbird]='packages.mozilla.org'
             [code]='packages.microsoft.com'
             [brave-browser]='brave-browser-apt-release.s3.brave.com'
             [onlyoffice-desktopeditors]='download.onlyoffice.com'
@@ -151,10 +144,37 @@ jobs:
           done
           (( failed == 0 )) || exit "$failed"
 
-          for package in firefox thunderbird code brave-browser onlyoffice-desktopeditors steam-launcher; do
+          for package in firefox code brave-browser onlyoffice-desktopeditors steam-launcher; do
             sudo apt-get --simulate -y install "$package" >/dev/null
             echo "PASS VENDOR INSTALL SIMULATION: $package"
           done
+      - name: Validate Proton Mail Stable Linux DEB
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          metadata="$RUNNER_TEMP/proton-mail-version.json"
+          deb="$RUNNER_TEMP/ProtonMail-desktop-beta.deb"
+          curl -fsSLo "$metadata" https://proton.me/download/mail/linux/version.json
+          release_json="$(jq -c '[.Releases[] | select(.CategoryName == "Stable")][0]' "$metadata")"
+          version="$(jq -r '.Version' <<<"$release_json")"
+          url="$(jq -r '.File[] | select(.Identifier | test("\\.deb")) | .Url' <<<"$release_json" | head -n1)"
+          expected="$(jq -r '.File[] | select(.Identifier | test("\\.deb")) | .Sha512CheckSum' <<<"$release_json" | head -n1)"
+          [[ "$url" == "https://proton.me/download/mail/linux/$version/ProtonMail-desktop-beta.deb" ]]
+          [[ "$expected" =~ ^[0-9a-fA-F]{128}$ ]]
+          curl -fsSLo "$deb" "$url"
+          printf '%s  %s\n' "$expected" "$deb" | sha512sum --check --status
+          package_name="$(dpkg-deb -f "$deb" Package)"
+          [[ "$package_name" == proton-mail ]]
+          sudo apt-get --simulate -y install "$deb" >/dev/null
+          echo "PASS PROTON MAIL: $version ($package_name)"
+      - name: Validate DuckDuckGo official Linux integration targets
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          curl -fsSI https://addons.mozilla.org/firefox/downloads/latest/duckduckgo-for-firefox/latest.xpi >/dev/null
+          curl -fsSI 'https://duckduckgo.com/?q=test' >/dev/null
+          grep -F 'jid1-ZAdIEUB7XOzOJw@jetpack' scripts/vendor/configure_duckduckgo.sh
+          grep -F 'DefaultSearchProviderName' scripts/vendor/configure_duckduckgo.sh
       - name: Validate preferred Flathub applications
         shell: bash
         run: |

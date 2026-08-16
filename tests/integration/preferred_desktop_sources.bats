@@ -7,7 +7,9 @@ setup() {
 @test "upstream preferred desktop sources are explicit" {
   policy="$REPO_ROOT/manifests/host/app-packaging-policy.conf"
   grep -Eq '^firefox\|managed\|vendor-apt\|firefox\|firefox\|org\.mozilla\.firefox\|packages\.mozilla\.org\|' "$policy"
-  grep -Eq '^thunderbird\|managed\|vendor-apt\|thunderbird\|thunderbird\|org\.mozilla\.Thunderbird\|packages\.mozilla\.org\|' "$policy"
+  grep -Eq '^proton-mail\|managed\|vendor-deb\|proton-mail\|' "$policy"
+  ! grep -Eq '^thunderbird\|' "$policy"
+  ! grep -Eq '^pdfarranger\|' "$policy"
   grep -Eq '^vscode\|managed\|vendor-apt\|' "$policy"
   grep -Eq '^brave\|managed\|vendor-apt\|' "$policy"
   grep -Eq '^obs-studio\|managed\|flatpak\|' "$policy"
@@ -19,14 +21,16 @@ setup() {
   grep -Eq '^xournalpp\|managed\|apt\|' "$policy"
 }
 
-@test "HOST app convergence uses Mozilla and upstream Flatpak sources" {
+@test "HOST app convergence uses Proton Mail and DuckDuckGo and retires Thunderbird/PDF Arranger" {
   module="$REPO_ROOT/modules/host/05_desktop_apps.sh"
-  grep -Fq 'scripts/vendor/install_mozilla_repo.sh' "$module"
-  ! grep -Fq 'scripts/vendor/install_obs_repo.sh' "$module"
+  grep -Fq 'scripts/vendor/remove_retired_desktop_apps.sh' "$module"
+  grep -Fq 'scripts/vendor/install_proton_mail.sh' "$module"
+  grep -Fq 'scripts/vendor/configure_duckduckgo.sh' "$module"
+  ! grep -Eq 'apt-get .*install.*pdfarranger' "$module"
+  ! grep -Eq 'apt-get .*install.*thunderbird' "$module"
   grep -Fq 'flatpak info --system com.bitwarden.desktop' "$module"
   grep -Fq 'flatpak info --system com.obsproject.Studio' "$module"
   grep -Fq 'flatpak info --system com.mattjakeman.ExtensionManager' "$module"
-  ! grep -Fq 'dpkg-query -W gnome-shell-extension-manager' "$module"
 }
 
 @test "Flatpak convergence is restricted to audited upstream apps" {
