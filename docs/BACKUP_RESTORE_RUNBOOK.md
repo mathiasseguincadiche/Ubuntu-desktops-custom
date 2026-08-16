@@ -15,7 +15,54 @@ Une cible locale n'est considérée externe que si son périphérique bloc est e
 
 ## 2. Backup pré-APPLY
 
-Fournir les secrets uniquement au runtime. La variable canonique du projet est `BACKUP_REPOSITORY_RUNTIME`; `RESTIC_REPOSITORY` est aussi accepté comme alias standard Restic. Ne pas définir les deux avec des valeurs différentes.
+### Workflow canonique automatisé
+
+Après un `FULL_DRY_RUN_PASS` lié au commit courant, utiliser le menu :
+
+```bash
+./menu.sh
+```
+
+puis :
+
+```text
+3) Préparer et vérifier le backup pré-APPLY (Restic)
+```
+
+Le menu appelle `./prepare-preapply-backup.sh`. Ce workflow :
+
+1. exige un worktree Git suivi propre et la preuve `FULL_DRY_RUN_PASS` du commit courant ;
+2. découvre les filesystems montés sur un périphérique prouvé USB/removable/hotplug ;
+3. refuse automatiquement le filesystem racine et les SSD internes ;
+4. refuse l'ambiguïté si plusieurs cibles externes sont présentes ;
+5. exige par défaut un filesystem EXT4 monté en lecture/écriture et au moins 20 GiB libres ;
+6. crée uniquement le sous-répertoire `Backup-Ubuntu/restic` sur la cible retenue ;
+7. ne formate, ne repartitionne et ne supprime aucun fichier étranger au dépôt Restic ;
+8. initialise le dépôt chiffré lorsqu'il n'existe pas encore, sans écraser un répertoire non vide qui ne serait pas un dépôt Restic ;
+9. capture les fichiers Git suivis, les configurations HOST reproductibles sélectionnées, la preuve de dry-run, les backups de migration disponibles et un inventaire machine ;
+10. crée un snapshot Restic étiqueté avec le commit et le `RUN_ID` ;
+11. exécute un test de restauration granulaire sur un fichier canari ;
+12. appelle `verify-preapply-backup.sh`, qui exécute ensuite `restic check --read-data` et écrit la preuve `BACKUP_VERIFIED`.
+
+Lors de la première utilisation, le workflow demande une passphrase Restic d'au moins 16 caractères et la stocke par défaut dans :
+
+```text
+~/.config/ubuntu-desktops-custom/secrets/restic-password
+```
+
+Le fichier est créé avec des permissions privées et n'est jamais stocké dans Git. **La passphrase doit aussi être conservée séparément**, par exemple dans un gestionnaire de mots de passe : perdre simultanément la machine et cette passphrase rendrait le dépôt chiffré inutilisable.
+
+Si exactement une cible externe admissible est montée, elle est sélectionnée automatiquement. En présence de plusieurs cibles, fournir explicitement le point de montage voulu uniquement pour cette exécution :
+
+```bash
+BACKUP_TARGET_MOUNT_RUNTIME=/chemin/du/disque/externe ./prepare-preapply-backup.sh
+```
+
+Le sous-répertoire du dépôt reste défini par `BACKUP_PREAPPLY_REPOSITORY_SUBDIR=Backup-Ubuntu/restic` dans `config/backup.conf`.
+
+### Vérification avancée d'un dépôt déjà existant
+
+La variable canonique du projet est `BACKUP_REPOSITORY_RUNTIME`; `RESTIC_REPOSITORY` est aussi accepté comme alias standard Restic. Ne pas définir les deux avec des valeurs différentes.
 
 ```bash
 export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic
@@ -49,6 +96,8 @@ Ne pas considérer la seule présence d'un snapshot comme une preuve d'intégrit
 ## 4. Sauvegarde HOST
 
 Sauvegarder prioritairement les éléments nécessaires à la reconstruction : configuration du projet, inventaires, données utilisateur explicitement prévues et configuration reproductible. Une image brute complète du système n'est pas le modèle canonique de reconstruction.
+
+Le snapshot pré-APPLY automatique ne réalise donc pas une image brute du système. Il protège les éléments reproductibles et les preuves nécessaires avant la convergence réelle.
 
 ## 5. Sauvegarde KVM/libvirt
 
