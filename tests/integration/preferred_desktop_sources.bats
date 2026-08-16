@@ -39,8 +39,10 @@ setup() {
 }
 
 @test "gaming and multimedia use Valve Steam and VideoLAN VLC sources" {
-  grep -Fq 'scripts/vendor/install_steam_repo.sh' "$REPO_ROOT/modules/host/07_gaming.sh"
-  ! grep -Fq 'steam-installer' "$REPO_ROOT/modules/host/07_gaming.sh"
-  grep -Fq 'scripts/vendor/install_vlc_snap.sh' "$REPO_ROOT/modules/host/04_multimedia_codecs.sh"
-  ! grep -Eq 'apt-get .*install.*vlc' "$REPO_ROOT/modules/host/04_multimedia_codecs.sh"
+  gaming="$REPO_ROOT/modules/host/07_gaming.sh"
+  multimedia="$REPO_ROOT/modules/host/04_multimedia_codecs.sh"
+  grep -Fq 'scripts/vendor/install_steam_repo.sh' "$gaming"
+  ! grep -Eq 'apt-get .*install.*steam-installer' "$gaming"
+  grep -Fq 'scripts/vendor/install_vlc_snap.sh' "$multimedia"
+  ! grep -Eq 'apt-get .*install.*vlc' "$multimedia"
 }
