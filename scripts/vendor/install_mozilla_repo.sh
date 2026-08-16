@@ -8,25 +8,19 @@ for cmd in curl gpg apt-get apt-cache dpkg-query; do
 done
 
 conflicts=()
-if command -v snap >/dev/null 2>&1; then
-  for app in firefox thunderbird; do
-    if snap list "$app" >/dev/null 2>&1; then
-      conflicts+=("$app:snap")
-    fi
-  done
+if command -v snap >/dev/null 2>&1 && snap list firefox >/dev/null 2>&1; then
+  conflicts+=("firefox:snap")
 fi
 if command -v flatpak >/dev/null 2>&1; then
   for scope in system user; do
-    for app_id in org.mozilla.firefox org.mozilla.Thunderbird; do
-      if flatpak info --"$scope" "$app_id" >/dev/null 2>&1; then
-        conflicts+=("$app_id:flatpak-$scope")
-      fi
-    done
+    if flatpak info --"$scope" org.mozilla.firefox >/dev/null 2>&1; then
+      conflicts+=("org.mozilla.firefox:flatpak-$scope")
+    fi
   done
 fi
 if ((${#conflicts[@]} > 0)); then
   printf 'ERROR: packaging migration required before Mozilla APT install: %s\n' "${conflicts[*]}" >&2
-  printf '%s\n' 'Run the read-only packaging inventory, migrate profiles if needed, then remove the conflicting package explicitly before APPLY.' >&2
+  printf '%s\n' 'Run the read-only packaging inventory, migrate the Firefox profile if needed, then remove the conflicting package explicitly before APPLY.' >&2
   exit 1
 fi
 
@@ -52,12 +46,6 @@ URIs: https://packages.mozilla.org/apt
 Suites: mozilla
 Components: main
 Signed-By: $KEYRING
-
-Types: deb
-URIs: https://packages.mozilla.org/apt
-Suites: thunderbird-deb
-Components: main
-Signed-By: $KEYRING
 EOF
 
 cat > "$PREF" <<'EOF'
@@ -67,19 +55,15 @@ Pin-Priority: 1000
 EOF
 
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get -y install firefox thunderbird
+DEBIAN_FRONTEND=noninteractive apt-get -y install firefox
 
 locale_name="${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}"
 locale_name="${locale_name%%:*}"
 locale_name="${locale_name%%.*}"
 language="${locale_name%%_*}"
 if [[ -n "$language" && "$language" != C && "$language" != POSIX && "$language" != en ]]; then
-  lang_packages=()
-  for app in firefox thunderbird; do
-    package="${app}-l10n-${language}"
-    apt-cache show "$package" >/dev/null 2>&1 && lang_packages+=("$package")
-  done
-  if ((${#lang_packages[@]} > 0)); then
-    DEBIAN_FRONTEND=noninteractive apt-get -y install "${lang_packages[@]}"
+  package="firefox-l10n-${language}"
+  if apt-cache show "$package" >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get -y install "$package"
   fi
 fi
