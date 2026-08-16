@@ -21,8 +21,12 @@ virsh -c qemu:///system shutdown ubuntu-devops
 
 ## 3. Connexion SSH
 
+L'APPLY réel exige une identité administrateur injectée au runtime : `VM_ADMIN_USER`, une clé publique pour cloud-init et la clé privée correspondante pour le transport SSH. Ces valeurs ne sont pas stockées dans le dépôt. Le dry-run utilise uniquement des valeurs synthétiques non secrètes et non utilisables pour une connexion réelle.
+
+Après provisioning réel :
+
 ```bash
-ssh ubuntu@<IP_VM>
+ssh <VM_ADMIN_USER>@<IP_VM>
 ```
 
 Pour VS Code, utiliser Remote - SSH avec la même identité et travailler dans le filesystem Linux de la VM.

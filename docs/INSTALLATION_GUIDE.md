@@ -71,13 +71,15 @@ Ne pas continuer en présence d'un KO. Les avertissements doivent être compris 
 
 Le dry-run traverse HOST → KVM → VM_DEVOPS → BACKUP sans autoriser de mutation réelle.
 
+Les entrées sensibles ou spécifiques à l'exécution réelle, notamment `VM_ADMIN_USER`, les clés SSH et les paramètres/secrets Restic, ne sont pas requises pour compléter le dry-run. Les modules qui ont besoin d'une identité VM utilisent uniquement des valeurs synthétiques non secrètes et non utilisables en production. En mode `--apply`, ces valeurs synthétiques sont interdites et les entrées runtime réelles restent obligatoires.
+
 Verdict attendu :
 
 ```text
 VERDICT: FULL DRY-RUN PASS
 ```
 
-La preuve de dry-run doit correspondre au commit courant.
+La preuve de dry-run doit correspondre au commit courant et à un worktree Git suivi propre.
 
 ## 5. Backup pré-APPLY
 

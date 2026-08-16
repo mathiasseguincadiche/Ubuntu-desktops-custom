@@ -19,6 +19,20 @@ vm_identity_ssh_precheck() {
   assert_scope VM_DEVOPS
   [[ "${VM_DEVOPS_ADDRESS_MODE:-}" == 'dhcp-reservation' ]] || return "$EXIT_PRECHECK_FAILED"
   command -v sha256sum >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
+
+  if is_true "${DRY_RUN:-true}"; then
+    if [[ -n "${VM_ADMIN_USER:-}" ]] && [[ ! "$VM_ADMIN_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+      return "$EXIT_INVALID_ARGUMENT"
+    fi
+    if [[ -n "${VM_ADMIN_SSH_PUBLIC_KEY_FILE:-}" ]]; then
+      [[ -r "$VM_ADMIN_SSH_PUBLIC_KEY_FILE" ]] || return "$EXIT_MANUAL_ACTION_REQUIRED"
+      grep -Eq '^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(256|384|521))[[:space:]]+' "$VM_ADMIN_SSH_PUBLIC_KEY_FILE" || return "$EXIT_INVALID_ARGUMENT"
+    fi
+    [[ -n "${VM_ADMIN_USER:-}" ]] || log_info VM_DEVOPS 'dry-run: VM admin username runtime input deferred; using synthetic non-secret identity'
+    [[ -n "${VM_ADMIN_SSH_PUBLIC_KEY_FILE:-}" ]] || log_info VM_DEVOPS 'dry-run: VM public SSH key runtime input deferred'
+    return 0
+  fi
+
   [[ -n "${VM_ADMIN_USER:-}" ]] || return "$EXIT_MANUAL_ACTION_REQUIRED"
   [[ "$VM_ADMIN_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || return "$EXIT_INVALID_ARGUMENT"
   [[ -n "${VM_ADMIN_SSH_PUBLIC_KEY_FILE:-}" && -r "$VM_ADMIN_SSH_PUBLIC_KEY_FILE" ]] || return "$EXIT_MANUAL_ACTION_REQUIRED"
@@ -32,13 +46,20 @@ VM IDENTITY / SSH PLAN:
 - derive a deterministic candidate DHCP reservation inside 192.168.50.100-200
 - reject the candidate if libvirt already assigns the IP to another MAC
 - keep the guest as DHCP client; libvirt/dnsmasq remains the addressing authority
-- require runtime admin username and public SSH key file; never commit private keys
+- require runtime admin username and public SSH key file for real APPLY; dry-run uses non-secret synthetic placeholders only
 - expose SSH through devops-nat only; physical-LAN isolation is enforced by the KVM network guard
 EOF
 }
 
 vm_identity_ssh_apply() {
   local derived mac ip identity network="${VM_DEVOPS_NETWORK:-devops-nat}"
+  local admin_user="${VM_ADMIN_USER:-}"
+
+  if is_true "${DRY_RUN:-true}" && [[ -z "$admin_user" ]]; then
+    admin_user='dryrun-devops'
+  fi
+  [[ -n "$admin_user" ]] || return "$EXIT_MANUAL_ACTION_REQUIRED"
+
   derived="$(vm_identity_derive)"
   mac="${derived%%|*}"
   ip="${derived##*|}"
@@ -63,7 +84,7 @@ vm_identity_ssh_apply() {
   {
     printf 'VM_DEVOPS_RESOLVED_MAC=%s\n' "$mac"
     printf 'VM_DEVOPS_RESOLVED_IP=%s\n' "$ip"
-    printf 'VM_ADMIN_USER=%s\n' "$VM_ADMIN_USER"
+    printf 'VM_ADMIN_USER=%s\n' "$admin_user"
   } > "$identity"
   chmod 0600 "$identity"
   log_info VM_DEVOPS "resolved identity mac=$mac ip=$ip"
@@ -75,4 +96,5 @@ vm_identity_ssh_postcheck() {
   [[ -s "$identity" ]] || return "$EXIT_POSTCHECK_FAILED"
   grep -Eq '^VM_DEVOPS_RESOLVED_MAC=52:54:00:' "$identity" || return "$EXIT_POSTCHECK_FAILED"
   grep -Eq '^VM_DEVOPS_RESOLVED_IP=192\.168\.50\.(1[0-9][0-9]|200)$' "$identity" || return "$EXIT_POSTCHECK_FAILED"
+  grep -Eq '^VM_ADMIN_USER=[a-z_][a-z0-9_-]*$' "$identity" || return "$EXIT_POSTCHECK_FAILED"
 }
