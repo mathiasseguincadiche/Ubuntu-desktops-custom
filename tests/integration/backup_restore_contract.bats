@@ -7,6 +7,8 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'BACKUP_ENCRYPTION_REQUIRED=true' "$REPO_ROOT/config/backup.conf"
   grep -F 'BACKUP_INTEGRITY_CHECK_REQUIRED=true' "$REPO_ROOT/config/backup.conf"
   grep -F 'BACKUP_RESTORE_TEST_REQUIRED=true' "$REPO_ROOT/config/backup.conf"
+  grep -F 'BACKUP_PREAPPLY_REPOSITORY_SUBDIR=Backup-Ubuntu/restic' "$REPO_ROOT/config/backup.conf"
+  grep -F 'BACKUP_PREAPPLY_REQUIRED_FSTYPE=ext4' "$REPO_ROOT/config/backup.conf"
 }
 
 @test "pre-apply backup verifier accepts canonical and Restic repository env names" {
@@ -27,11 +29,35 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'BACKUP_REQUIRE_EXTERNAL_TARGET' "$script"
 }
 
+@test "pre-apply backup preparation is automated and remains fail-closed" {
+  script="$REPO_ROOT/prepare-preapply-backup.sh"
+  grep -F 'apply_gate_verify_dryrun_proof' "$script"
+  grep -F 'BACKUP_TARGET_MOUNT_RUNTIME' "$script"
+  grep -F 'BACKUP_PREAPPLY_REPOSITORY_SUBDIR' "$script"
+  grep -F 'backup_local_source_is_external()' "$script"
+  grep -F 'restic --repo "$repository" --password-file "$password_file" init' "$script"
+  grep -F 'restic --repo "$repository" --password-file "$password_file" backup' "$script"
+  grep -F 'restic --repo "$repository" --password-file "$password_file" restore "$snapshot_id"' "$script"
+  grep -F '"$REPO_ROOT/verify-preapply-backup.sh"' "$script"
+  grep -F 'apply_gate_verify_backup_proof' "$script"
+  run grep -E '(^|[[:space:]])(mkfs|parted|wipefs|fdisk|sgdisk)([[:space:]]|$)' "$script"
+  [ "$status" -ne 0 ]
+}
+
+@test "interactive menu places verified backup before real apply" {
+  menu="$REPO_ROOT/menu.sh"
+  grep -F '3) Préparer et vérifier le backup pré-APPLY (Restic)' "$menu"
+  grep -F '4) Installation reelle protegee (--apply)' "$menu"
+  grep -F '3) bash "$REPO_ROOT/prepare-preapply-backup.sh" ;;' "$menu"
+}
+
 @test "backup documentation uses the verifier runtime contract" {
   grep -F 'export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
   grep -F 'RESTIC_REPOSITORY' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
   grep -F 'export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic' "$REPO_ROOT/docs/INSTALLATION_GUIDE.md"
   grep -Fi 'un second SSD interne ne satisfait pas' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
+  grep -F './prepare-preapply-backup.sh' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
+  grep -F '3) Préparer et vérifier le backup pré-APPLY' "$REPO_ROOT/docs/INSTALLATION_GUIDE.md"
 }
 
 @test "unsafe live qcow2 copy is forbidden" {
