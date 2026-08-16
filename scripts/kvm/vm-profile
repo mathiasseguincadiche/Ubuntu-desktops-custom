@@ -164,7 +164,7 @@ rollback_created_vm() {
 }
 
 create_vm() {
-  local profile="$1" confirmation volume="$VM_NAME.qcow2"
+  local profile="$1" confirmation volume
   parse_args "${@:2}" || return "$?"
   profile_values "$profile" || return "$?"
   volume="$VM_NAME.qcow2"
