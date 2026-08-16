@@ -88,7 +88,9 @@ fi
 ACTIVE_SCOPE=''
 ui_check OK 'Préflight HOST' 'Machine compatible'
 
-if ! apply_gate_open_runtime; then
+if apply_gate_open_runtime; then
+  :
+else
   rc=$?
   ui_blocked 'APPLY BLOQUÉ PAR LE GATE FINAL' \
     "Un contrôle de sécurité a refusé l’exécution (rc=$rc)." \
