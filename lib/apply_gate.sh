@@ -127,6 +127,15 @@ apply_gate_check() {
 
 apply_gate_open_runtime() {
   apply_gate_check || return "$?"
+
+  # The operator confirmation can remain open for an arbitrary amount of time.
+  # Re-assert the audit-log paths immediately before the first possible mutation.
+  # If they disappeared while still in pre-APPLY, recreate them and record it.
+  log_recover_runtime_paths_preapply 'runtime log directory disappeared during final gate confirmation' || {
+    printf 'REAL APPLY BLOCKED: runtime audit logs could not be restored before first mutation.\n' >&2
+    return "$EXIT_SECURITY_BLOCK"
+  }
+
   export DRY_RUN=false
   export REAL_MACHINE_APPROVED=true
   log_warn ENGINE 'REAL MACHINE APPLY runtime gate OPEN for this process only.'
