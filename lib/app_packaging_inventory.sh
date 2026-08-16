@@ -190,7 +190,7 @@ app_packaging_inventory_run() {
           source_status='MISMATCH'
           status='DRIFT'
           APP_PACKAGING_DRIFT=$((APP_PACKAGING_DRIFT + 1))
-          APP_PACKAGING_ISSUES+=("$app=$installed[source-mismatch]->$preferred")
+          APP_PACKAGING_ISSUES+=("$app=${installed}[source-mismatch]->$preferred")
         fi
       else
         status='DRIFT'
