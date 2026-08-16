@@ -15,7 +15,8 @@ jobs:
       - name: Bash syntax
         run: find . -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
       - name: ShellCheck entrypoints
-        run: shellcheck -x -S warning ./*.sh
+        # SC1112 is intentionally disabled for operator-facing French copy that uses typographic apostrophes.
+        run: shellcheck -e SC1112 -x -S warning ./*.sh
       - name: ShellCheck common engine blocking errors
         run: shellcheck -x -S error lib/*.sh
       - name: ShellCheck common engine advisory warnings

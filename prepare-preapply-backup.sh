@@ -7,10 +7,59 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$REPO_ROOT/lib/bootstrap.sh"
 engine_bootstrap
 
+RESTIC_UI_LOG="$LOG_DIR/restic.log"
+: > "$RESTIC_UI_LOG"
+
 backup_fail() {
   local message="$1"
   local code="${2:-$EXIT_PRECHECK_FAILED}"
-  printf 'BACKUP PREP BLOCKED: %s\n' "$message" >&2
+  local problem action
+  log_info BACKUP "BLOCKED: $message"
+
+  case "$message" in
+    *'tracked Git worktree must be clean'*)
+      problem='Le dépôt Git contient des modifications suivies.'
+      action='Revenir à un worktree propre puis refaire le dry-run.'
+      ;;
+    *'FULL_DRY_RUN_PASS proof'*)
+      problem='La preuve FULL DRY-RUN PASS du commit courant est absente ou périmée.'
+      action='Relancer l’option 2, puis revenir à l’option 3.'
+      ;;
+    *'no mounted external'*)
+      problem='Aucun stockage externe monté et admissible n’a été détecté.'
+      action='Brancher et monter le SSD externe, puis relancer l’option 3.'
+      ;;
+    *'multiple external targets'*)
+      problem='Plusieurs cibles externes sont détectées et le choix est ambigu.'
+      action='Définir BACKUP_TARGET_MOUNT_RUNTIME vers la cible voulue, puis relancer.'
+      ;;
+    *'not proven external'*)
+      problem='La cible choisie ne peut pas être prouvée comme stockage externe.'
+      action='Utiliser un disque USB/removable/hotplug ou un backend Restic distant supporté.'
+      ;;
+    *'passphrase'*)
+      problem='La passphrase Restic n’a pas pu être créée ou validée.'
+      action='Relancer l’option 3 dans un terminal interactif et saisir deux fois la même passphrase.'
+      ;;
+    *'free space'*)
+      problem='L’espace libre minimal requis sur la cible de sauvegarde n’est pas disponible ou mesurable.'
+      action='Vérifier le montage et l’espace libre du SSD externe.'
+      ;;
+    *'restore'*)
+      problem='Le test de restauration du backup n’a pas réussi.'
+      action='Ne pas lancer l’APPLY. Consulter le log Restic puis corriger la sauvegarde.'
+      ;;
+    *)
+      problem="$message"
+      action='Consulter le log technique, corriger le contrôle indiqué puis relancer l’option 3.'
+      ;;
+  esac
+
+  ui_blocked 'BACKUP PRÉ-APPLY BLOQUÉ' \
+    "$problem" \
+    'Le gate d’installation réelle reste fermé.' \
+    "$action" \
+    "$RESTIC_UI_LOG"
   exit "$code"
 }
 
@@ -100,10 +149,8 @@ backup_select_target_mount() {
     backup_fail 'no mounted external USB/removable/hotplug filesystem found' "$EXIT_SECURITY_BLOCK"
   fi
   if (( ${#candidates[@]} > 1 )); then
-    printf '%s\n' 'BACKUP PREP BLOCKED: multiple external targets detected:' >&2
-    printf '  - %s\n' "${candidates[@]}" >&2
-    printf '%s\n' 'Set BACKUP_TARGET_MOUNT_RUNTIME to the intended mounted filesystem and retry.' >&2
-    exit "$EXIT_SECURITY_BLOCK"
+    printf 'Multiple external candidates: %s\n' "${candidates[*]}" >> "$RESTIC_UI_LOG"
+    backup_fail 'multiple external targets detected' "$EXIT_SECURITY_BLOCK"
   fi
 
   candidate="${candidates[0]}"
@@ -170,11 +217,11 @@ backup_password_file() {
     password_dir="$(dirname "$password_file")"
     mkdir -p -- "$password_dir"
     chmod 0700 "$password_dir"
-    printf '%s\n' 'A Restic passphrase is required. It is never stored in Git.' >&2
-    printf '%s\n' 'Keep this passphrase separately (for example in your password manager); the encrypted backup cannot be restored without it.' >&2
-    read -r -s -p 'Restic passphrase (16+ characters): ' first
+    ui_info 'Une passphrase Restic est nécessaire. Elle ne sera jamais enregistrée dans Git.' >&2
+    ui_info 'Conservez-la séparément dans votre gestionnaire de mots de passe.' >&2
+    read -r -s -p 'Passphrase Restic (16 caractères minimum) : ' first
     printf '\n' >&2
-    read -r -s -p 'Confirm Restic passphrase: ' second
+    read -r -s -p 'Confirmer la passphrase Restic : ' second
     printf '\n' >&2
     [[ "$first" == "$second" ]] || backup_fail 'Restic passphrase confirmation does not match' "$EXIT_INVALID_ARGUMENT"
     (( ${#first} >= 16 )) || backup_fail 'Restic passphrase must contain at least 16 characters' "$EXIT_INVALID_ARGUMENT"
@@ -269,49 +316,62 @@ repository_subdir="${BACKUP_PREAPPLY_REPOSITORY_SUBDIR:-Backup-Ubuntu/restic}"
 backup_validate_repository_subdir "$repository_subdir"
 repository="$target_mount/$repository_subdir"
 available_bytes="$(backup_require_free_space "$target_mount")"
+available_gib=$((available_bytes / 1024 / 1024 / 1024))
 
-printf '%s\n' '=== PRE-APPLY BACKUP TARGET ==='
-printf 'Commit:      %s\n' "$commit"
-printf 'Mountpoint:  %s\n' "$target_mount"
-printf 'Source:      %s\n' "$(findmnt -n -o SOURCE -T "$target_mount")"
-printf 'Filesystem:  %s\n' "$(findmnt -n -o FSTYPE -T "$target_mount")"
-printf 'Repository:  %s\n' "$repository"
-printf 'Free bytes:  %s\n' "$available_bytes"
-printf '%s\n' 'No formatting, partitioning or deletion of unrelated files will be performed.'
+ui_banner 'BACKUP PRÉ-APPLY' 'SAUVEGARDE RESTIC CHIFFRÉE AVANT INSTALLATION'
+ui_meta 'Commit' "$short_commit"
+ui_meta 'Disque externe' "$(findmnt -n -o SOURCE -T "$target_mount")"
+ui_meta 'Point de montage' "$target_mount"
+ui_meta 'Filesystem' "$(findmnt -n -o FSTYPE -T "$target_mount")"
+ui_meta 'Dépôt Restic' "$repository"
+ui_meta 'Espace libre' "~${available_gib} Gio"
+ui_meta 'Log Restic' "$RESTIC_UI_LOG"
+printf '\n'
+ui_check OK 'Cible externe' 'USB/removable/hotplug vérifié'
+ui_check OK 'Filesystem' 'EXT4 monté en lecture/écriture'
+ui_check OK 'Données existantes' 'Aucun formatage, repartitionnement ou effacement prévu'
 
 confirmation="${BACKUP_PREAPPLY_CONFIRMATION_PHRASE:-JE_CONFIRME_LA_CREATION_DU_BACKUP_PRE_APPLY}"
-printf 'To create/update the encrypted pre-APPLY backup, type exactly: %s\n' "$confirmation"
-read -r -p '> ' answer
+printf '\nPour autoriser uniquement la création/mise à jour de la sauvegarde, tape exactement :\n'
+printf '  %s\n' "$confirmation"
+read -r -p 'Confirmation > ' answer
 [[ "$answer" == "$confirmation" ]] || backup_fail 'backup confirmation phrase rejected' "$EXIT_SECURITY_BLOCK"
 
 backup_ensure_repository_dir "$target_mount" "$repository"
 password_file="$(backup_password_file)"
+ui_check OK 'Secret Restic' 'Fichier de passphrase local protégé (mode 600)'
 
 if [[ -e "$repository/config" ]]; then
-  restic --repo "$repository" --password-file "$password_file" --no-lock snapshots >/dev/null \
+  restic --repo "$repository" --password-file "$password_file" --no-lock snapshots >> "$RESTIC_UI_LOG" 2>&1 \
     || backup_fail 'existing Restic repository cannot be opened with the supplied password' "$EXIT_SECURITY_BLOCK"
+  ui_check OK 'Dépôt Restic' 'Dépôt chiffré existant ouvert avec succès'
 elif [[ -n "$(find "$repository" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
   backup_fail 'repository directory is non-empty but is not a Restic repository; refusing to overwrite it' "$EXIT_SECURITY_BLOCK"
 else
-  printf '%s\n' 'Initializing encrypted Restic repository...'
-  restic --repo "$repository" --password-file "$password_file" init
+  ui_info 'Initialisation du dépôt Restic chiffré...'
+  restic --repo "$repository" --password-file "$password_file" init >> "$RESTIC_UI_LOG" 2>&1 \
+    || backup_fail 'Restic repository initialization failed'
+  ui_check OK 'Dépôt Restic' 'Nouveau dépôt chiffré initialisé'
 fi
 
 inventory_dir="$STATE_ROOT/preapply-backup/$RUN_ID"
 backup_capture_inventory "$inventory_dir" "$commit"
 backup_build_sources "$inventory_dir"
+ui_check OK 'Inventaire' "${#BACKUP_SOURCES[@]} sources préparées"
 
 run_tag="run-$RUN_ID"
-printf '%s\n' 'Creating pre-APPLY Restic snapshot...'
+ui_info 'Création du snapshot pré-APPLY...'
 restic --repo "$repository" --password-file "$password_file" backup \
   --tag ubuntu-desktops-custom \
   --tag pre-apply \
   --tag "commit-$short_commit" \
   --tag "$run_tag" \
-  "${BACKUP_SOURCES[@]}"
+  "${BACKUP_SOURCES[@]}" >> "$RESTIC_UI_LOG" 2>&1 \
+  || backup_fail 'Restic pre-APPLY snapshot creation failed'
+ui_check OK 'Snapshot' 'Snapshot pré-APPLY créé sur le SSD externe'
 
 snapshot_id="$(
-  restic --repo "$repository" --password-file "$password_file" --json snapshots --tag "$run_tag" \
+  restic --repo "$repository" --password-file "$password_file" --json snapshots --tag "$run_tag" 2>> "$RESTIC_UI_LOG" \
     | python3 -c 'import json,sys; data=json.load(sys.stdin); ids=[x.get("id","") for x in data if x.get("id")]; raise SystemExit(1) if len(ids)!=1 else print(ids[0])'
 )" || backup_fail 'cannot resolve the unique snapshot created by this run'
 
@@ -319,20 +379,26 @@ restore_dir="$inventory_dir/restore-test"
 mkdir -p -- "$restore_dir"
 chmod 0700 "$restore_dir"
 canary="$inventory_dir/restore-canary.txt"
-printf '%s\n' 'Running granular restore smoke test...'
+ui_info 'Test réel de restauration dans un répertoire de staging...'
 restic --repo "$repository" --password-file "$password_file" restore "$snapshot_id" \
-  --target "$restore_dir" --include "$canary"
+  --target "$restore_dir" --include "$canary" >> "$RESTIC_UI_LOG" 2>&1 \
+  || backup_fail 'restore smoke test command failed' "$EXIT_POSTCHECK_FAILED"
 restored_canary="$restore_dir$canary"
 [[ -f "$restored_canary" ]] || backup_fail 'restore smoke test did not restore the canary file' "$EXIT_POSTCHECK_FAILED"
 cmp -s "$canary" "$restored_canary" || backup_fail 'restored canary differs from source' "$EXIT_POSTCHECK_FAILED"
+ui_check OK 'Restauration' 'Canary restauré et identique à la source'
 
 export BACKUP_REPOSITORY_RUNTIME="$repository"
 export RESTIC_REPOSITORY="$repository"
 export RESTIC_PASSWORD_FILE="$password_file"
-"$REPO_ROOT/verify-preapply-backup.sh"
+ui_info 'Vérification intégrale du dépôt et des données Restic...'
+"$REPO_ROOT/verify-preapply-backup.sh" >> "$RESTIC_UI_LOG" 2>&1 \
+  || backup_fail 'backup verifier failed after snapshot creation' "$EXIT_POSTCHECK_FAILED"
+ui_check OK 'Intégrité' 'restic check --read-data terminé avec succès'
 
 proof="$REPO_ROOT/${REAL_APPLY_BACKUP_PROOF_FILE:-state/real-apply/backup-verified.pass}"
 apply_gate_verify_backup_proof || backup_fail 'backup verifier returned without a valid current backup proof' "$EXIT_SECURITY_BLOCK"
+ui_check OK 'Preuve APPLY' 'BACKUP_VERIFIED lié au commit courant'
 
 {
   printf 'commit=%s\n' "$commit"
@@ -346,8 +412,6 @@ apply_gate_verify_backup_proof || backup_fail 'backup verifier returned without 
 } > "$STATE_ROOT/preapply-backup/latest.pass"
 chmod 600 "$STATE_ROOT/preapply-backup/latest.pass"
 
-printf '%s\n' 'PRE-APPLY BACKUP READY'
-printf 'Repository: %s\n' "$repository"
-printf 'Snapshot:   %s\n' "$snapshot_id"
-printf 'Proof:      %s\n' "$proof"
-printf '%s\n' 'NEXT STEP: return to menu and choose the protected real APPLY option.'
+ui_summary 'PRE-APPLY BACKUP READY' 'Retourner au menu ; l’option 4 peut maintenant vérifier ses gates' "$proof" "$RESTIC_UI_LOG"
+ui_meta 'Snapshot' "${snapshot_id:0:12}"
+ui_meta 'Dépôt' "$repository"

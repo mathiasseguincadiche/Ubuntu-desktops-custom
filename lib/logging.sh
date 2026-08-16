@@ -7,8 +7,10 @@ log_init() {
   safe_mkdir "$LOG_DIR"
   MAIN_LOG="$LOG_DIR/main.log"
   COMMAND_LOG="$LOG_DIR/commands.log"
+  MODULE_LOG="$LOG_DIR/modules.log"
   : > "$MAIN_LOG"
   : > "$COMMAND_LOG"
+  : > "$MODULE_LOG"
 }
 
 redact_text() {
@@ -25,10 +27,28 @@ _log() {
   local message line
   message="$(redact_text "$@")"
   line="$(uw_now) $level $scope $message"
-  printf '%s\n' "$line"
+
   if [[ -n "${MAIN_LOG:-}" ]]; then
     printf '%s\n' "$line" >> "$MAIN_LOG"
   fi
+
+  # Unit libraries and legacy callers may source logging.sh without ui.sh.
+  # Preserve the historical console behavior in that isolated context.
+  if ! declare -F ui_is_operator >/dev/null 2>&1; then
+    printf '%s\n' "$line"
+    return 0
+  fi
+
+  if [[ "${UI_MODE_CURRENT:-operator}" == technical ]]; then
+    printf '%s\n' "$line"
+    return 0
+  fi
+
+  case "$level" in
+    WARN) ui_warn "$scope — $message" ;;
+    ERROR) ui_error "$scope — $message" ;;
+    *) : ;;
+  esac
 }
 
 log_info() {
@@ -63,4 +83,10 @@ log_command() {
   if [[ -n "${COMMAND_LOG:-}" ]]; then
     printf '%s\n' "$line" >> "$COMMAND_LOG"
   fi
+}
+
+log_module_boundary() {
+  local id="$1" phase="$2" state="$3"
+  [[ -n "${MODULE_LOG:-}" ]] || return 0
+  printf '\n===== %s | module=%s | phase=%s | %s =====\n' "$(uw_now)" "$id" "$phase" "$state" >> "$MODULE_LOG"
 }

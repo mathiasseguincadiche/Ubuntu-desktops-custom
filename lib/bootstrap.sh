@@ -15,6 +15,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/common.sh"
   # shellcheck source=lib/config.sh
   source "$REPO_ROOT/lib/config.sh"
+  # shellcheck source=lib/ui.sh
+  source "$REPO_ROOT/lib/ui.sh"
   # shellcheck source=lib/logging.sh
   source "$REPO_ROOT/lib/logging.sh"
   # shellcheck source=lib/state.sh
@@ -45,6 +47,7 @@ engine_bootstrap() {
   DRY_RUN="${DRY_RUN:-true}"
   ORCH_RESUME="${ORCH_RESUME:-false}"
   config_load_dir "$REPO_ROOT/config"
+  ui_init
 
   LOG_ROOT="${LOG_ROOT:-$REPO_ROOT/logs}"
   STATE_ROOT="${STATE_ROOT:-$REPO_ROOT/state}"

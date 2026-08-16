@@ -9,6 +9,10 @@ declare -Ag ORCH_APPLY=()
 declare -Ag ORCH_POSTCHECK=()
 declare -ag ORCH_ORDER=()
 
+orchestrator_ui_enabled() {
+  declare -F ui_is_operator >/dev/null 2>&1 && ui_is_operator
+}
+
 orchestrator_reset() {
   ORCH_SCOPE=()
   ORCH_DEPS=()
@@ -17,6 +21,7 @@ orchestrator_reset() {
   ORCH_APPLY=()
   ORCH_POSTCHECK=()
   ORCH_ORDER=()
+  UI_SCOPE_CURRENT=''
 }
 
 orchestrator_register() {
@@ -39,6 +44,33 @@ orchestrator_call() {
   [[ -z "$fn" ]] && return 0
   declare -F "$fn" >/dev/null || return "$EXIT_INVALID_ARGUMENT"
   "$fn"
+}
+
+orchestrator_call_phase() {
+  local id="$1" phase="$2" fn="$3" rc=0
+  [[ -z "$fn" ]] && return 0
+  declare -F "$fn" >/dev/null || return "$EXIT_INVALID_ARGUMENT"
+
+  log_module_boundary "$id" "$phase" BEGIN
+  if orchestrator_ui_enabled; then
+    if "$fn" >> "$MODULE_LOG" 2>&1; then
+      log_module_boundary "$id" "$phase" END_OK
+      return 0
+    else
+      rc=$?
+      log_module_boundary "$id" "$phase" "END_FAIL rc=$rc"
+      return "$rc"
+    fi
+  fi
+
+  if "$fn"; then
+    log_module_boundary "$id" "$phase" END_OK
+    return 0
+  else
+    rc=$?
+    log_module_boundary "$id" "$phase" "END_FAIL rc=$rc"
+    return "$rc"
+  fi
 }
 
 orchestrator_state_satisfies_dependency() {
@@ -64,38 +96,97 @@ orchestrator_should_resume_skip() {
   orchestrator_state_satisfies_dependency "$current"
 }
 
+orchestrator_module_position() {
+  local wanted="$1" id index=0
+  for id in "${ORCH_ORDER[@]}"; do
+    index=$((index + 1))
+    if [[ "$id" == "$wanted" ]]; then
+      printf '%s\n' "$index"
+      return 0
+    fi
+  done
+  return "$EXIT_INVALID_ARGUMENT"
+}
+
+orchestrator_prepare_ui_step() {
+  local id="$1" scope="$2" index
+  orchestrator_ui_enabled || return 0
+  if [[ "${UI_SCOPE_CURRENT:-}" != "$scope" ]]; then
+    ui_section "$scope"
+  fi
+  index="$(orchestrator_module_position "$id")"
+  ui_step_begin "$index" "${#ORCH_ORDER[@]}" "$id"
+}
+
+orchestrator_fail_ui_step() {
+  local phase="$1" rc="$2"
+  orchestrator_ui_enabled || return 0
+  ui_step_fail "Phase $phase en échec (rc=$rc). Détail : $MODULE_LOG"
+}
+
 orchestrator_run_module() {
-  local id="$1" previous_scope="${ACTIVE_SCOPE:-}" rc=0
+  local id="$1" previous_scope="${ACTIVE_SCOPE:-}" rc=0 module_scope
   [[ -n "${ORCH_SCOPE[$id]+x}" ]] || return "$EXIT_INVALID_ARGUMENT"
+  module_scope="${ORCH_SCOPE[$id]}"
+  ACTIVE_SCOPE="$module_scope"
+  orchestrator_prepare_ui_step "$id" "$module_scope"
 
   if orchestrator_should_resume_skip "$id"; then
     log_info ENGINE "resume skip module=$id state=$(state_get "$id")"
+    if orchestrator_ui_enabled; then ui_step_skip; fi
+    ACTIVE_SCOPE="$previous_scope"
     return 0
   fi
 
   if ! orchestrator_dependencies_ready "$id"; then
     state_set "$id" "$STATE_BLOCKED" 'dependency not satisfied'
+    if orchestrator_ui_enabled; then ui_step_fail 'Dépendance non satisfaite. Aucune mutation lancée.'; fi
+    ACTIVE_SCOPE="$previous_scope"
     return "$EXIT_DEPENDENCY_FAILED"
   fi
 
-  ACTIVE_SCOPE="${ORCH_SCOPE[$id]}"
   state_set "$id" "$STATE_RUNNING" 'precheck'
   log_info ENGINE "module=$id phase=PRECHECK scope=$ACTIVE_SCOPE"
-  if orchestrator_call "${ORCH_PRECHECK[$id]}"; then :; else rc=$?; state_set "$id" "$STATE_FAILED" 'precheck failed'; ACTIVE_SCOPE="$previous_scope"; return "$rc"; fi
+  if orchestrator_call_phase "$id" PRECHECK "${ORCH_PRECHECK[$id]}"; then :; else
+    rc=$?
+    state_set "$id" "$STATE_FAILED" 'precheck failed'
+    orchestrator_fail_ui_step PRECHECK "$rc"
+    ACTIVE_SCOPE="$previous_scope"
+    return "$rc"
+  fi
 
   state_set "$id" "$STATE_RUNNING" 'plan'
   log_info ENGINE "module=$id phase=PLAN scope=$ACTIVE_SCOPE"
-  if orchestrator_call "${ORCH_PLAN[$id]}"; then :; else rc=$?; state_set "$id" "$STATE_FAILED" 'plan failed'; ACTIVE_SCOPE="$previous_scope"; return "$rc"; fi
+  if orchestrator_call_phase "$id" PLAN "${ORCH_PLAN[$id]}"; then :; else
+    rc=$?
+    state_set "$id" "$STATE_FAILED" 'plan failed'
+    orchestrator_fail_ui_step PLAN "$rc"
+    ACTIVE_SCOPE="$previous_scope"
+    return "$rc"
+  fi
 
   state_set "$id" "$STATE_RUNNING" 'apply'
   log_info ENGINE "module=$id phase=APPLY scope=$ACTIVE_SCOPE dry_run=${DRY_RUN:-true}"
-  if orchestrator_call "${ORCH_APPLY[$id]}"; then :; else rc=$?; state_set "$id" "$STATE_FAILED" 'apply failed'; ACTIVE_SCOPE="$previous_scope"; return "$rc"; fi
+  if orchestrator_call_phase "$id" APPLY "${ORCH_APPLY[$id]}"; then :; else
+    rc=$?
+    state_set "$id" "$STATE_FAILED" 'apply failed'
+    orchestrator_fail_ui_step APPLY "$rc"
+    ACTIVE_SCOPE="$previous_scope"
+    return "$rc"
+  fi
 
   state_set "$id" "$STATE_RUNNING" 'postcheck'
   log_info ENGINE "module=$id phase=POSTCHECK scope=$ACTIVE_SCOPE"
-  if orchestrator_call "${ORCH_POSTCHECK[$id]}"; then :; else rc=$?; state_set "$id" "$STATE_FAILED" 'postcheck failed'; ACTIVE_SCOPE="$previous_scope"; return "$rc"; fi
+  if orchestrator_call_phase "$id" POSTCHECK "${ORCH_POSTCHECK[$id]}"; then :; else
+    rc=$?
+    state_set "$id" "$STATE_FAILED" 'postcheck failed'
+    orchestrator_fail_ui_step POSTCHECK "$rc"
+    ACTIVE_SCOPE="$previous_scope"
+    return "$rc"
+  fi
 
   state_set "$id" "$STATE_SUCCESS" 'all phases completed'
+  if orchestrator_ui_enabled; then ui_step_ok; fi
   ACTIVE_SCOPE="$previous_scope"
 }
 
@@ -112,6 +203,7 @@ orchestrator_report() {
 orchestrator_run_scope() {
   local wanted_scope="$1" id rc=0 matched=0
   scope_valid "$wanted_scope" || return "$EXIT_INVALID_ARGUMENT"
+  UI_SCOPE_CURRENT=''
   for id in "${ORCH_ORDER[@]}"; do
     [[ "${ORCH_SCOPE[$id]}" == "$wanted_scope" ]] || continue
     matched=1
@@ -130,6 +222,7 @@ orchestrator_run_scope() {
 
 orchestrator_run_all() {
   local id rc=0
+  UI_SCOPE_CURRENT=''
   for id in "${ORCH_ORDER[@]}"; do
     if orchestrator_run_module "$id"; then
       :
