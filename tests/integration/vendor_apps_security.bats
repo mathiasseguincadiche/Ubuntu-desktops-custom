@@ -12,14 +12,45 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   [ "$status" -ne 0 ]
 }
 
-@test "Mozilla uses signed Resolute-aware APT repository with pinned key fingerprint" {
+@test "Mozilla installer is Firefox-only and uses signed repository" {
   script="$REPO_ROOT/scripts/vendor/install_mozilla_repo.sh"
   grep -F 'https://packages.mozilla.org/apt/repo-signing-key.gpg' "$script"
   grep -F '35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3' "$script"
   grep -F 'Suites: mozilla' "$script"
-  grep -F 'Suites: thunderbird-deb' "$script"
+  ! grep -Fq 'thunderbird-deb' "$script"
   grep -F 'Pin-Priority: 1000' "$script"
-  grep -F 'apt-get -y install firefox thunderbird' "$script"
+  grep -F 'apt-get -y install firefox' "$script"
+  ! grep -Eq 'install firefox thunderbird' "$script"
+}
+
+@test "Proton Mail installer selects Stable DEB and verifies SHA512" {
+  script="$REPO_ROOT/scripts/vendor/install_proton_mail.sh"
+  grep -F 'https://proton.me/download/mail/linux/version.json' "$script"
+  grep -F 'CategoryName == "Stable"' "$script"
+  grep -F 'Sha512CheckSum' "$script"
+  grep -F 'sha512sum --check --status' "$script"
+  grep -F 'dpkg-deb -f "$DEB" Package' "$script"
+  grep -F '[[ "$package_name" == proton-mail ]]' "$script"
+}
+
+@test "DuckDuckGo integration uses official Firefox extension and browser policies" {
+  script="$REPO_ROOT/scripts/vendor/configure_duckduckgo.sh"
+  grep -F 'jid1-ZAdIEUB7XOzOJw@jetpack' "$script"
+  grep -F 'https://addons.mozilla.org/firefox/downloads/latest/duckduckgo-for-firefox/latest.xpi' "$script"
+  grep -F '.policies.SearchEngines.Default = "DuckDuckGo"' "$script"
+  grep -F 'DefaultSearchProviderName' "$script"
+  grep -F 'https://duckduckgo.com/?q={searchTerms}' "$script"
+}
+
+@test "retired app cleanup removes packages but preserves user data" {
+  script="$REPO_ROOT/scripts/vendor/remove_retired_desktop_apps.sh"
+  grep -F 'thunderbird pdfarranger' "$script"
+  grep -F 'snap remove thunderbird' "$script"
+  grep -F 'org.mozilla.Thunderbird' "$script"
+  grep -F 'com.github.jeromerobert.pdfarranger' "$script"
+  grep -F 'User data and Thunderbird profiles were preserved.' "$script"
+  run grep -E 'rm -rf.*(thunderbird|\.thunderbird)' "$script"
+  [ "$status" -ne 0 ]
 }
 
 @test "VS Code uses Microsoft signed repository" {
