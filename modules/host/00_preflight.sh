@@ -109,13 +109,23 @@ host_preflight_assert_kvm() {
 }
 
 host_preflight_precheck() {
+  local cmd
   assert_scope HOST
+
+  if [[ -z "${HOST_PROBE_FIXTURE_DIR:-}" ]]; then
+    for cmd in lscpu lspci lsblk findmnt ip; do
+      command -v "$cmd" >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
+    done
+  fi
+
+  # Always preserve a read-only inventory, including when a compatibility assertion fails afterwards.
+  host_preflight_collect >/dev/null || return "$EXIT_PRECHECK_FAILED"
+
   host_preflight_assert_os
   host_preflight_assert_cpu
   host_preflight_assert_gpu
   host_preflight_assert_storage
   host_preflight_assert_kvm
-  host_preflight_collect >/dev/null
   log_info HOST 'host preflight read-only checks passed'
 }
 
