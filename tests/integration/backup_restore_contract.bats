@@ -18,10 +18,20 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'restic --repo "$repo" --password-file "$password_file" --no-lock check --read-data' "$script"
 }
 
+@test "local pre-apply backup target must be proven external" {
+  script="$REPO_ROOT/verify-preapply-backup.sh"
+  grep -F 'backup_local_source_is_external()' "$script"
+  grep -F 'lsblk -s -n -p -o NAME,TYPE,TRAN,RM,HOTPLUG' "$script"
+  grep -F '[[ "$tran" == usb || "$removable" == 1 || "$hotplug" == 1 ]]' "$script"
+  grep -F 'a second internal SSD is insufficient.' "$script"
+  grep -F 'BACKUP_REQUIRE_EXTERNAL_TARGET' "$script"
+}
+
 @test "backup documentation uses the verifier runtime contract" {
   grep -F 'export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
   grep -F 'RESTIC_REPOSITORY' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
   grep -F 'export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic' "$REPO_ROOT/docs/INSTALLATION_GUIDE.md"
+  grep -F 'un second SSD interne ne satisfait pas' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
 }
 
 @test "unsafe live qcow2 copy is forbidden" {
