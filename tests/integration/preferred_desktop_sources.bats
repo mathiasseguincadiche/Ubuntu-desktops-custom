@@ -4,27 +4,45 @@ setup() {
   REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 }
 
-@test "Ubuntu defaults and preferred desktop sources are explicit" {
+@test "upstream preferred desktop sources are explicit" {
   policy="$REPO_ROOT/manifests/host/app-packaging-policy.conf"
-  grep -Eq '^firefox\|preserve\|snap\|' "$policy"
-  grep -Eq '^thunderbird\|preserve\|snap\|' "$policy"
+  grep -Eq '^firefox\|managed\|vendor-apt\|firefox\|firefox\|org\.mozilla\.firefox\|packages\.mozilla\.org\|' "$policy"
+  grep -Eq '^thunderbird\|managed\|vendor-apt\|thunderbird\|thunderbird\|org\.mozilla\.Thunderbird\|packages\.mozilla\.org\|' "$policy"
   grep -Eq '^vscode\|managed\|vendor-apt\|' "$policy"
   grep -Eq '^brave\|managed\|vendor-apt\|' "$policy"
-  grep -Eq '^obs-studio\|managed\|vendor-apt\|' "$policy"
+  grep -Eq '^obs-studio\|managed\|flatpak\|' "$policy"
+  grep -Eq '^gnome-extension-manager\|managed\|flatpak\|' "$policy"
   grep -Eq '^onlyoffice\|managed\|vendor-apt\|' "$policy"
   grep -Eq '^bitwarden\|managed\|flatpak\|' "$policy"
+  grep -Eq '^steam\|managed\|vendor-apt\|steam-launcher\|' "$policy"
+  grep -Eq '^vlc\|managed\|snap\|' "$policy"
+  grep -Eq '^xournalpp\|managed\|apt\|' "$policy"
 }
 
-@test "HOST app convergence uses OBS and ONLYOFFICE vendor installers" {
+@test "HOST app convergence uses Mozilla and upstream Flatpak sources" {
   module="$REPO_ROOT/modules/host/05_desktop_apps.sh"
-  grep -Fq 'scripts/vendor/install_obs_repo.sh' "$module"
-  grep -Fq 'scripts/vendor/install_onlyoffice_repo.sh' "$module"
+  grep -Fq 'scripts/vendor/install_mozilla_repo.sh' "$module"
+  ! grep -Fq 'scripts/vendor/install_obs_repo.sh' "$module"
   grep -Fq 'flatpak info --system com.bitwarden.desktop' "$module"
-  ! grep -Fq 'flatpak info --system org.onlyoffice.desktopeditors' "$module"
+  grep -Fq 'flatpak info --system com.obsproject.Studio' "$module"
+  grep -Fq 'flatpak info --system com.mattjakeman.ExtensionManager' "$module"
+  ! grep -Fq 'dpkg-query -W gnome-shell-extension-manager' "$module"
 }
 
-@test "Flatpak convergence no longer installs ONLYOFFICE" {
+@test "Flatpak convergence is restricted to audited upstream apps" {
   script="$REPO_ROOT/scripts/vendor/install_flatpak_apps.sh"
   grep -Fq 'com.bitwarden.desktop' "$script"
-  ! grep -Fq 'org.onlyoffice.desktopeditors' "$script"
+  grep -Fq 'com.obsproject.Studio' "$script"
+  grep -Fq 'com.mattjakeman.ExtensionManager' "$script"
+  run grep -E 'flatpak install.*(org\.onlyoffice\.desktopeditors|com\.jgraph\.drawio|marktext)' "$script"
+  [ "$status" -ne 0 ]
+}
+
+@test "gaming and multimedia use Valve Steam and VideoLAN VLC sources" {
+  gaming="$REPO_ROOT/modules/host/07_gaming.sh"
+  multimedia="$REPO_ROOT/modules/host/04_multimedia_codecs.sh"
+  grep -Fq 'scripts/vendor/install_steam_repo.sh' "$gaming"
+  ! grep -Eq 'apt-get .*install.*steam-installer' "$gaming"
+  grep -Fq 'scripts/vendor/install_vlc_snap.sh' "$multimedia"
+  ! grep -Eq 'apt-get .*install.*vlc' "$multimedia"
 }

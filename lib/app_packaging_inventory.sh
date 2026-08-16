@@ -54,6 +54,53 @@ app_packaging_flatpak_installed() {
   flatpak info --system "$app_id" >/dev/null 2>&1 || flatpak info --user "$app_id" >/dev/null 2>&1
 }
 
+app_packaging_apt_origin_matches() {
+  local package="${1:?}" expected="${2:?}" installed_version policy
+  [[ "$expected" != '-' ]] || return 0
+  command -v apt-cache >/dev/null 2>&1 || return 1
+  installed_version="$(dpkg-query -W -f='${Version}' "$package" 2>/dev/null)" || return 1
+  policy="$(apt-cache policy "$package" 2>/dev/null)" || return 1
+
+  awk -v version="$installed_version" -v expected="$expected" '
+    {
+      line=$0
+      sub(/^[[:space:]]+/, "", line)
+      if (line ~ /^\*\*\*[[:space:]]+/) {
+        sub(/^\*\*\*[[:space:]]+/, "", line)
+        split(line, fields, /[[:space:]]+/)
+        current=(fields[1] == version)
+        next
+      }
+      field_count=split(line, fields, /[[:space:]]+/)
+      if (field_count == 2 && fields[2] ~ /^[0-9]+$/) {
+        current=(fields[1] == version)
+        next
+      }
+      if (current && index(line, expected) > 0) {
+        found=1
+      }
+    }
+    END { exit(found ? 0 : 1) }
+  ' <<< "$policy"
+}
+
+app_packaging_flatpak_origin_matches() {
+  local app_id="${1:?}" expected="${2:?}" origin
+  [[ "$expected" != '-' ]] || return 0
+  command -v flatpak >/dev/null 2>&1 || return 1
+  origin="$(flatpak info --system --show-origin "$app_id" 2>/dev/null || flatpak info --user --show-origin "$app_id" 2>/dev/null)" || return 1
+  [[ "$origin" == "$expected" ]]
+}
+
+app_packaging_source_matches() {
+  local preferred="${1:?}" apt_package="${2:?}" flatpak_id="${3:?}" source_hint="${4:?}"
+  case "$preferred" in
+    vendor-apt) app_packaging_apt_origin_matches "$apt_package" "$source_hint" ;;
+    flatpak) app_packaging_flatpak_origin_matches "$flatpak_id" "$source_hint" ;;
+    *) return 0 ;;
+  esac
+}
+
 app_packaging_manager_summary() {
   local apt_count='unavailable' snap_count='unavailable' flatpak_system='unavailable' flatpak_user='unavailable'
   if command -v dpkg-query >/dev/null 2>&1; then
@@ -72,8 +119,8 @@ app_packaging_manager_summary() {
 
 app_packaging_inventory_run() {
   app_packaging_reset
-  local policy report line app mode preferred apt_package snap_name flatpak_id rationale
-  local preferred_manager installed status installed_count
+  local policy report line app mode preferred apt_package snap_name flatpak_id source_hint rationale
+  local preferred_manager installed status installed_count source_status
   policy="$(app_packaging_policy_file)"
   [[ -r "$policy" ]] || return 1
 
@@ -85,15 +132,19 @@ app_packaging_inventory_run() {
     printf 'Run ID: %s\n' "$RUN_ID"
     printf 'Policy: %s\n' "$policy"
     printf 'Managers: %s\n\n' "$(app_packaging_manager_summary)"
-    printf '%-25s | %-8s | %-10s | %-20s | %s\n' 'APPLICATION' 'MODE' 'PREFERRED' 'INSTALLED VIA' 'STATUS'
-    printf '%s\n' '--------------------------+----------+------------+----------------------+-------------'
+    printf '%-25s | %-8s | %-10s | %-20s | %-12s | %s\n' 'APPLICATION' 'MODE' 'PREFERRED' 'INSTALLED VIA' 'SOURCE' 'STATUS'
+    printf '%s\n' '--------------------------+----------+------------+----------------------+--------------+-------------'
 
     while IFS= read -r line || [[ -n "$line" ]]; do
       [[ -n "$line" && "$line" != \#* ]] || continue
-      IFS='|' read -r app mode preferred apt_package snap_name flatpak_id rationale <<< "$line"
-      [[ -n "$app" && -n "$mode" && -n "$preferred" ]] || return 1
+      IFS='|' read -r app mode preferred apt_package snap_name flatpak_id source_hint rationale <<< "$line"
+      [[ -n "$app" && -n "$mode" && -n "$preferred" && -n "$source_hint" ]] || return 1
       [[ "$mode" == managed || "$mode" == preserve ]] || return 1
       preferred_manager="$(app_packaging_preferred_manager "$preferred")" || return 1
+
+      if [[ "$preferred" == vendor-apt || "$preferred" == flatpak ]]; then
+        [[ "$source_hint" != '-' ]] || return 1
+      fi
 
       APP_PACKAGING_TRACKED=$((APP_PACKAGING_TRACKED + 1))
       installed=''
@@ -111,6 +162,7 @@ app_packaging_inventory_run() {
         installed_count=$((installed_count + 1))
       fi
       installed="${installed:-none}"
+      source_status='n/a'
 
       if (( installed_count > 1 )); then
         status='DUPLICATE'
@@ -125,12 +177,20 @@ app_packaging_inventory_run() {
           APP_PACKAGING_PLANNED=$((APP_PACKAGING_PLANNED + 1))
         fi
       elif [[ "$installed" == "$preferred_manager" ]]; then
-        if [[ "$mode" == preserve ]]; then
-          status='PRESERVED'
-          APP_PACKAGING_PRESERVED=$((APP_PACKAGING_PRESERVED + 1))
+        if app_packaging_source_matches "$preferred" "$apt_package" "$flatpak_id" "$source_hint"; then
+          source_status="${source_hint/-/n/a}"
+          if [[ "$mode" == preserve ]]; then
+            status='PRESERVED'
+            APP_PACKAGING_PRESERVED=$((APP_PACKAGING_PRESERVED + 1))
+          else
+            status='CONFORMING'
+            APP_PACKAGING_CONFORMING=$((APP_PACKAGING_CONFORMING + 1))
+          fi
         else
-          status='CONFORMING'
-          APP_PACKAGING_CONFORMING=$((APP_PACKAGING_CONFORMING + 1))
+          source_status='MISMATCH'
+          status='DRIFT'
+          APP_PACKAGING_DRIFT=$((APP_PACKAGING_DRIFT + 1))
+          APP_PACKAGING_ISSUES+=("$app=${installed}[source-mismatch]->$preferred")
         fi
       else
         status='DRIFT'
@@ -138,7 +198,7 @@ app_packaging_inventory_run() {
         APP_PACKAGING_ISSUES+=("$app=$installed->$preferred")
       fi
 
-      printf '%-25s | %-8s | %-10s | %-20s | %s\n' "$app" "$mode" "$preferred" "$installed" "$status"
+      printf '%-25s | %-8s | %-10s | %-20s | %-12s | %s\n' "$app" "$mode" "$preferred" "$installed" "$source_status" "$status"
       printf '  rationale: %s\n' "$rationale"
     done < "$policy"
 
