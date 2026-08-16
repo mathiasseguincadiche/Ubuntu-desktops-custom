@@ -6,7 +6,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$REPO_ROOT/lib/bootstrap.sh"
 engine_bootstrap
 
-repo="${BACKUP_REPOSITORY_RUNTIME:-}"
+repo_runtime="${BACKUP_REPOSITORY_RUNTIME:-}"
+repo_restic="${RESTIC_REPOSITORY:-}"
 password_file="${RESTIC_PASSWORD_FILE:-}"
 proof="$REPO_ROOT/${REAL_APPLY_BACKUP_PROOF_FILE:-state/real-apply/backup-verified.pass}"
 
@@ -15,7 +16,15 @@ if ! apply_gate_require_clean_worktree; then
   exit "$EXIT_SECURITY_BLOCK"
 fi
 
-[[ -n "$repo" ]] || { printf '%s\n' 'BACKUP VERIFY BLOCKED: BACKUP_REPOSITORY_RUNTIME is required.' >&2; exit "$EXIT_INVALID_ARGUMENT"; }
+if [[ -n "$repo_runtime" && -n "$repo_restic" && "$repo_runtime" != "$repo_restic" ]]; then
+  printf '%s\n' 'BACKUP VERIFY BLOCKED: BACKUP_REPOSITORY_RUNTIME and RESTIC_REPOSITORY disagree.' >&2
+  exit "$EXIT_INVALID_ARGUMENT"
+fi
+repo="${repo_runtime:-$repo_restic}"
+[[ -n "$repo" ]] || {
+  printf '%s\n' 'BACKUP VERIFY BLOCKED: BACKUP_REPOSITORY_RUNTIME or RESTIC_REPOSITORY is required.' >&2
+  exit "$EXIT_INVALID_ARGUMENT"
+}
 [[ -n "$password_file" && -r "$password_file" ]] || { printf '%s\n' 'BACKUP VERIFY BLOCKED: readable RESTIC_PASSWORD_FILE is required.' >&2; exit "$EXIT_INVALID_ARGUMENT"; }
 command -v restic >/dev/null 2>&1 || { printf '%s\n' 'BACKUP VERIFY BLOCKED: restic is not installed.' >&2; exit "$EXIT_PRECHECK_FAILED"; }
 command -v python3 >/dev/null 2>&1 || { printf '%s\n' 'BACKUP VERIFY BLOCKED: python3 is required.' >&2; exit "$EXIT_PRECHECK_FAILED"; }
