@@ -226,7 +226,9 @@ ui_step_skip() {
 }
 
 ui_step_fail() {
-  ui_step_end FAIL "${1:-Échec de l'étape}"
+  local detail="${1:-}"
+  [[ -n "$detail" ]] || detail="Échec de l'étape"
+  ui_step_end FAIL "$detail"
 }
 
 ui_info() {
