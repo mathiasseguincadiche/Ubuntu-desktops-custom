@@ -301,6 +301,37 @@ backup_require_free_space() {
   printf '%s\n' "$available"
 }
 
+backup_snapshot_id_from_json() {
+  local json_file="$1"
+  python3 - "$json_file" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+snapshot_ids = []
+with open(path, "r", encoding="utf-8") as handle:
+    for line_no, raw in enumerate(handle, start=1):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            record = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"invalid Restic backup JSON at line {line_no}: {exc}")
+        if record.get("message_type") == "summary" and record.get("snapshot_id"):
+            snapshot_ids.append(record["snapshot_id"])
+
+if len(snapshot_ids) != 1:
+    raise SystemExit(f"expected exactly one backup summary snapshot_id, found {len(snapshot_ids)}")
+
+snapshot_id = snapshot_ids[0]
+if len(snapshot_id) != 64 or any(ch not in "0123456789abcdefABCDEF" for ch in snapshot_id):
+    raise SystemExit("Restic returned an invalid full snapshot_id")
+
+print(snapshot_id)
+PY
+}
+
 for cmd in restic python3 findmnt lsblk readlink df stat git dpkg-query apt-mark systemctl ip lspci hostname; do
   command -v "$cmd" >/dev/null 2>&1 || backup_fail "required command missing: $cmd"
 done
@@ -360,20 +391,27 @@ backup_build_sources "$inventory_dir"
 ui_check OK 'Inventaire' "${#BACKUP_SOURCES[@]} sources préparées"
 
 run_tag="run-$RUN_ID"
+backup_json="$LOG_DIR/restic-backup.jsonl"
+: > "$backup_json"
 ui_info 'Création du snapshot pré-APPLY...'
-restic --repo "$repository" --password-file "$password_file" backup \
+if restic --repo "$repository" --password-file "$password_file" --quiet backup --json \
   --tag ubuntu-desktops-custom \
   --tag pre-apply \
   --tag "commit-$short_commit" \
   --tag "$run_tag" \
-  "${BACKUP_SOURCES[@]}" >> "$RESTIC_UI_LOG" 2>&1 \
-  || backup_fail 'Restic pre-APPLY snapshot creation failed'
-ui_check OK 'Snapshot' 'Snapshot pré-APPLY créé sur le SSD externe'
+  "${BACKUP_SOURCES[@]}" > "$backup_json" 2>> "$RESTIC_UI_LOG"; then
+  cat "$backup_json" >> "$RESTIC_UI_LOG"
+else
+  rc=$?
+  cat "$backup_json" >> "$RESTIC_UI_LOG" 2>/dev/null || true
+  backup_fail "Restic pre-APPLY snapshot creation failed (rc=$rc)"
+fi
 
-snapshot_id="$(
-  restic --repo "$repository" --password-file "$password_file" --json snapshots --tag "$run_tag" 2>> "$RESTIC_UI_LOG" \
-    | python3 -c 'import json,sys; data=json.load(sys.stdin); ids=[x.get("id","") for x in data if x.get("id")]; raise SystemExit(1) if len(ids)!=1 else print(ids[0])'
-)" || backup_fail 'cannot resolve the unique snapshot created by this run'
+snapshot_id="$(backup_snapshot_id_from_json "$backup_json" 2>> "$RESTIC_UI_LOG")" \
+  || backup_fail 'cannot resolve snapshot ID from Restic backup JSON summary'
+restic --repo "$repository" --password-file "$password_file" --no-lock cat snapshot "$snapshot_id" >/dev/null 2>> "$RESTIC_UI_LOG" \
+  || backup_fail 'created Restic snapshot cannot be reopened by its snapshot ID' "$EXIT_POSTCHECK_FAILED"
+ui_check OK 'Snapshot' "Créé et identifié : ${snapshot_id:0:12}"
 
 restore_dir="$inventory_dir/restore-test"
 mkdir -p -- "$restore_dir"
