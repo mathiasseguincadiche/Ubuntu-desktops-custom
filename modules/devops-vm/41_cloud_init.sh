@@ -16,6 +16,16 @@ vm_cloud_init_precheck() {
   [[ -f "$REPO_ROOT/virtualization/cloud-init/network-config.tpl" ]] || return "$EXIT_PRECHECK_FAILED"
   [[ -f "$REPO_ROOT/scripts/kvm/fetch_ubuntu_2604_cloud_image.sh" ]] || return "$EXIT_PRECHECK_FAILED"
   [[ -s "${STATE_ROOT:?}/${VM_DEVOPS_NAME:-ubuntu-devops}-vm-identity.env" ]] || return "$EXIT_PRECHECK_FAILED"
+
+  if is_true "${DRY_RUN:-true}"; then
+    if [[ -n "${VM_ADMIN_SSH_PUBLIC_KEY_FILE:-}" ]]; then
+      [[ -r "$VM_ADMIN_SSH_PUBLIC_KEY_FILE" ]] || return "$EXIT_MANUAL_ACTION_REQUIRED"
+    else
+      log_info VM_DEVOPS 'dry-run: cloud-init public SSH key runtime input deferred; using a non-usable placeholder'
+    fi
+    return 0
+  fi
+
   [[ -n "${VM_ADMIN_SSH_PUBLIC_KEY_FILE:-}" && -r "$VM_ADMIN_SSH_PUBLIC_KEY_FILE" ]] || return "$EXIT_MANUAL_ACTION_REQUIRED"
 }
 
@@ -27,6 +37,7 @@ VM CLOUD IMAGE / CLOUD-INIT PLAN:
 - verify SHA256SUMS.gpg with /usr/share/keyrings/ubuntu-cloudimage-keyring.gpg before trusting the SHA-256 digest
 - verify the downloaded image against the signed SHA-256 manifest
 - render NoCloud user-data from the versioned template using runtime admin username/public SSH key
+- during dry-run only, use a clearly non-usable placeholder key so no secret input is required
 - generate a NoCloud seed with cloud-localds
 - keep password SSH disabled and root login disabled
 - guest remains DHCP client; stable addressing is owned by libvirt DHCP reservation
@@ -40,7 +51,14 @@ vm_cloud_init_apply() {
   IFS='|' read -r base seed user_data meta_data <<< "$packed"
   identity="${STATE_ROOT}/${VM_DEVOPS_NAME:-ubuntu-devops}-vm-identity.env"
   admin_user="$(awk -F= '$1=="VM_ADMIN_USER"{print $2}' "$identity")"
-  ssh_key="$(head -n1 "$VM_ADMIN_SSH_PUBLIC_KEY_FILE")"
+
+  if [[ -n "${VM_ADMIN_SSH_PUBLIC_KEY_FILE:-}" && -r "$VM_ADMIN_SSH_PUBLIC_KEY_FILE" ]]; then
+    ssh_key="$(head -n1 "$VM_ADMIN_SSH_PUBLIC_KEY_FILE")"
+  elif is_true "${DRY_RUN:-true}"; then
+    ssh_key='ssh-ed25519 DRYRUN_PLACEHOLDER_KEY_NOT_USED dry-run@ubuntu-desktops-custom'
+  else
+    return "$EXIT_MANUAL_ACTION_REQUIRED"
+  fi
   [[ -n "$admin_user" && -n "$ssh_key" ]] || return "$EXIT_APPLY_FAILED"
 
   run_mutating VM_DEVOPS sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install \
