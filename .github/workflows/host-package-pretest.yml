@@ -69,7 +69,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          sudo install -d -m 0755 /etc/apt/keyrings
+          sudo install -d -m 0755 /etc/apt/keyrings /usr/share/keyrings
 
           curl -fsSLo "$RUNNER_TEMP/mozilla.gpg" https://packages.mozilla.org/apt/repo-signing-key.gpg
           mozilla_fpr="$(gpg --batch --show-keys --with-colons "$RUNNER_TEMP/mozilla.gpg" | awk -F: '$1=="fpr" {print $10; exit}')"
@@ -94,6 +94,23 @@ jobs:
           Pin-Priority: 1000
           EOF
 
+          curl -fsSLo "$RUNNER_TEMP/microsoft.asc" https://packages.microsoft.com/keys/microsoft.asc
+          gpg --batch --yes --dearmor --output "$RUNNER_TEMP/microsoft.gpg" "$RUNNER_TEMP/microsoft.asc"
+          sudo install -m 0644 "$RUNNER_TEMP/microsoft.gpg" /usr/share/keyrings/microsoft-vscode.gpg
+          sudo tee /etc/apt/sources.list.d/vscode.sources >/dev/null <<'EOF'
+          Types: deb
+          URIs: https://packages.microsoft.com/repos/code
+          Suites: stable
+          Components: main
+          Architectures: amd64
+          Signed-By: /usr/share/keyrings/microsoft-vscode.gpg
+          EOF
+
+          curl -fsSLo "$RUNNER_TEMP/brave.gpg" https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+          sudo install -m 0644 "$RUNNER_TEMP/brave.gpg" /usr/share/keyrings/brave-browser-archive-keyring.gpg
+          curl -fsSLo "$RUNNER_TEMP/brave.sources" https://brave-browser-apt-release.s3.brave.com/brave-browser.sources
+          sudo install -m 0644 "$RUNNER_TEMP/brave.sources" /etc/apt/sources.list.d/brave-browser-release.sources
+
           curl -fsSLo "$RUNNER_TEMP/onlyoffice.asc" https://download.onlyoffice.com/GPG-KEY-ONLYOFFICE
           gpg --batch --yes --dearmor --output "$RUNNER_TEMP/onlyoffice.gpg" "$RUNNER_TEMP/onlyoffice.asc"
           sudo install -m 0644 "$RUNNER_TEMP/onlyoffice.gpg" /usr/share/keyrings/onlyoffice.gpg
@@ -111,6 +128,8 @@ jobs:
           declare -A expected_origin=(
             [firefox]='packages.mozilla.org'
             [thunderbird]='packages.mozilla.org'
+            [code]='packages.microsoft.com'
+            [brave-browser]='brave-browser-apt-release.s3.brave.com'
             [onlyoffice-desktopeditors]='download.onlyoffice.com'
             [steam-launcher]='repo.steampowered.com'
           )
@@ -132,7 +151,7 @@ jobs:
           done
           (( failed == 0 )) || exit "$failed"
 
-          for package in firefox thunderbird onlyoffice-desktopeditors steam-launcher; do
+          for package in firefox thunderbird code brave-browser onlyoffice-desktopeditors steam-launcher; do
             sudo apt-get --simulate -y install "$package" >/dev/null
             echo "PASS VENDOR INSTALL SIMULATION: $package"
           done
