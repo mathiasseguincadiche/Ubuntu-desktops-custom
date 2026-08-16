@@ -82,6 +82,7 @@ pretest_check_installer_gate() {
 
   for token in \
     'REAL_APPLY_REQUIRE_TTY=true' \
+    'REAL_APPLY_REQUIRE_CLEAN_WORKTREE=true' \
     'REAL_APPLY_REQUIRE_CURRENT_COMMIT_DRY_RUN=true' \
     'REAL_APPLY_REQUIRE_VERIFIED_BACKUP=true' \
     'REAL_APPLY_REQUIRE_EXACT_CONFIRMATION=true' \
@@ -91,6 +92,7 @@ pretest_check_installer_gate() {
 
   grep -Fq 'export REAL_MACHINE_APPROVED=true' "$gate_lib" || failed=1
   grep -Fq 'apply_gate_check || return "$?"' "$gate_lib" || failed=1
+  grep -Fq 'apply_gate_require_clean_worktree' "$gate_lib" || failed=1
 
   (( failed == 0 )) && pretest_record OK 'INSTALLER GATE' 'guarded --apply path enforced' || \
     pretest_record KO 'INSTALLER GATE' 'required APPLY gates are missing or bypassable'
@@ -163,6 +165,20 @@ pretest_check_backup_safety() {
   fi
 }
 
+pretest_check_git_worktree() {
+  local changes detail
+  if ! changes="$(apply_gate_tracked_worktree_changes)"; then
+    pretest_record KO 'GIT WORKTREE' 'cannot verify tracked Git worktree state'
+    return 0
+  fi
+  if [[ -n "$changes" ]]; then
+    detail="$(printf '%s' "$changes" | tr '\n' ';')"
+    pretest_record KO 'GIT WORKTREE' "tracked changes must be resolved before dry-run proof: $detail"
+  else
+    pretest_record OK 'GIT WORKTREE' 'tracked files exactly match current HEAD'
+  fi
+}
+
 pretest_check_runtime_inputs() {
   local warnings=0
   [[ -n "${VM_ADMIN_SSH_PRIVATE_KEY_FILE:-}" ]] || warnings=$((warnings + 1))
@@ -229,6 +245,7 @@ diagnostic_run() {
   pretest_check_download_hygiene
   pretest_check_mutation_boundaries
   pretest_check_backup_safety
+  pretest_check_git_worktree
   pretest_check_runtime_inputs
   pretest_check_physical_host
   pretest_render
