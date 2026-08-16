@@ -10,12 +10,22 @@ desktop_user="${DESKTOP_USER:-${SUDO_USER:-}}"
   exit 1
 }
 
-for cmd in getent id snap tar sha256sum apt-get apt-cache dpkg-query sudo find pgrep; do
+for cmd in getent id snap tar sha256sum apt-get apt-cache dpkg-query sudo find pgrep awk; do
   command -v "$cmd" >/dev/null 2>&1 || { printf 'ERROR: %s is required.\n' "$cmd" >&2; exit 1; }
 done
 [[ -r "$REPO_ROOT/scripts/vendor/install_mozilla_repo.sh" ]] || {
   printf '%s\n' 'ERROR: Mozilla installer is missing.' >&2
   exit 1
+}
+
+stream_contains_exact() {
+  local needle="$1"
+  awk -v needle="$needle" '$0 == needle { found=1 } END { exit(found ? 0 : 1) }'
+}
+
+stream_contains_fixed() {
+  local needle="$1"
+  awk -v needle="$needle" 'index($0, needle) { found=1 } END { exit(found ? 0 : 1) }'
 }
 
 desktop_home="$(getent passwd "$desktop_user" | awk -F: '{print $6}')"
@@ -32,12 +42,15 @@ timestamp="$(date +%Y%m%dT%H%M%S%z)"
 archive="$backup_root/firefox-snap-profile-$timestamp.tar.gz"
 checksum="$archive.sha256"
 stage='preflight'
+backup_verified=false
 
 on_error() {
   local rc=$?
   printf 'ERROR: Firefox migration failed during stage=%s (rc=%d).\n' "$stage" "$rc" >&2
-  if [[ -n "${archive:-}" && -s "${archive:-}" ]]; then
+  if [[ "$backup_verified" == true ]]; then
     printf 'Verified migration backup retained at: %s\n' "$archive" >&2
+  elif [[ -n "${archive:-}" && -s "${archive:-}" ]]; then
+    printf 'Migration backup file retained but verification did not complete: %s\n' "$archive" >&2
   fi
   exit "$rc"
 }
@@ -67,7 +80,7 @@ fi
   exit 1
 }
 
-if [[ -d "$native_profile_root" ]] && find "$native_profile_root" -mindepth 1 -print -quit | grep -q .; then
+if [[ -d "$native_profile_root" ]] && [[ -n "$(find "$native_profile_root" -mindepth 1 -print -quit)" ]]; then
   printf 'ERROR: native Firefox profile already contains data: %s\n' "$native_profile_root" >&2
   printf '%s\n' 'Automatic profile merging is intentionally refused.' >&2
   exit 1
@@ -79,13 +92,14 @@ sudo -u "$desktop_user" tar -C "$desktop_home/snap/firefox/common/.mozilla" -czf
 sha256sum "$archive" > "$checksum"
 chown "$desktop_user:$desktop_group" "$checksum"
 sha256sum -c "$checksum"
-tar -tzf "$archive" | grep -Fxq 'firefox/profiles.ini'
+backup_verified=true
+tar -tzf "$archive" | stream_contains_exact 'firefox/profiles.ini'
 
 # Stage the official Mozilla repository while the Snap still exists. This does not
 # install a second Firefox; it only prepares and validates the future APT candidate.
 stage='mozilla-repository-preflight'
 bash "$REPO_ROOT/scripts/vendor/install_mozilla_repo.sh" --configure-only
-apt-cache policy firefox | grep -Fq 'packages.mozilla.org'
+apt-cache policy firefox | stream_contains_fixed 'packages.mozilla.org'
 apt-get --simulate --allow-downgrades install firefox >/dev/null
 
 stage='snap-removal'
@@ -94,8 +108,8 @@ snap remove firefox
 stage='mozilla-apt-install'
 bash "$REPO_ROOT/scripts/vendor/install_mozilla_repo.sh"
 
-dpkg-query -W -f='${Status}\n' firefox | grep -Fxq 'install ok installed'
-apt-cache policy firefox | grep -Fq 'packages.mozilla.org'
+[[ "$(dpkg-query -W -f='${Status}\n' firefox)" == 'install ok installed' ]]
+apt-cache policy firefox | stream_contains_fixed 'packages.mozilla.org'
 ! snap list firefox >/dev/null 2>&1
 
 stage='profile-restore'
@@ -105,12 +119,12 @@ if [[ -d "$native_profile_root" ]]; then
 fi
 sudo -u "$desktop_user" tar -C "$desktop_home/.mozilla" -xzf "$archive"
 [[ -r "$native_profile_root/profiles.ini" ]]
-find "$native_profile_root" -mindepth 2 -name places.sqlite -print -quit | grep -q .
+[[ -n "$(find "$native_profile_root" -mindepth 2 -name places.sqlite -print -quit)" ]]
 
 stage='final-validation'
 sha256sum -c "$checksum"
 ! snap list firefox >/dev/null 2>&1
-apt-cache policy firefox | grep -Fq 'packages.mozilla.org'
+apt-cache policy firefox | stream_contains_fixed 'packages.mozilla.org'
 
 trap - ERR
 printf '%s\n' 'Firefox migration completed successfully.'
