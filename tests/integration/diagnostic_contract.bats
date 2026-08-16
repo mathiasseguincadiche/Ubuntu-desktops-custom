@@ -26,7 +26,7 @@ setup() {
   [[ "$output" == *"VERDICT: GO DIAGNOSTIC"* ]]
 }
 
-@test "mutation boundary audit allows read-only virsh systemctl and nft probes" {
+@test "mutation boundary audit allows read-only probes and package-list tokens" {
   mkdir -p "$BATS_TEST_TMPDIR/repo/modules"
   cat > "$BATS_TEST_TMPDIR/repo/modules/read-only.sh" <<'EOF'
 sudo virsh --connect qemu:///system net-info devops-nat
@@ -34,6 +34,7 @@ sudo virsh --connect qemu:///system net-dumpxml devops-nat
 sudo systemctl is-active --quiet libvirtd
 sudo nft list table inet ubuntu_desktops_custom_kvm
 qemu-img check /tmp/test.qcow2
+virt-install virt-manager virt-viewer \
 EOF
 
   run bash -c "
@@ -53,6 +54,25 @@ EOF
   mkdir -p "$BATS_TEST_TMPDIR/repo/modules"
   cat > "$BATS_TEST_TMPDIR/repo/modules/raw-mutation.sh" <<'EOF'
 sudo virsh --connect qemu:///system net-start devops-nat
+EOF
+
+  run bash -c "
+    source '$REPO_ROOT/lib/pretest_audit.sh'
+    REPO_ROOT='$BATS_TEST_TMPDIR/repo'
+    pretest_reset
+    pretest_check_mutation_boundaries
+    printf 'ok=%s ko=%s detail=%s\n' \"\$PRETEST_OK\" \"\$PRETEST_KO\" \"\${PRETEST_LINES[*]}\"
+    (( PRETEST_KO == 1 ))
+  "
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"raw mutating command found"* ]]
+}
+
+@test "mutation boundary audit rejects direct virt-install execution" {
+  mkdir -p "$BATS_TEST_TMPDIR/repo/modules"
+  cat > "$BATS_TEST_TMPDIR/repo/modules/raw-virt-install.sh" <<'EOF'
+virt-install --name unsafe-vm --memory 1024 --disk size=8
 EOF
 
   run bash -c "
