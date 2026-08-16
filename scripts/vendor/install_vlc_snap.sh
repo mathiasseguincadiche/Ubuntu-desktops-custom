@@ -4,6 +4,9 @@ set -Eeuo pipefail
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { printf '%s\n' 'ERROR: root privileges required.' >&2; exit 1; }
 command -v snap >/dev/null 2>&1 || { printf '%s\n' 'ERROR: snap is required.' >&2; exit 1; }
 
+if snap list vlc >/dev/null 2>&1; then
+  exit 0
+fi
 if dpkg-query -W -f='${Status}\n' vlc 2>/dev/null | grep -Fxq 'install ok installed'; then
   printf '%s\n' 'ERROR: VLC DEB is already installed. Remove or migrate it explicitly before installing the VideoLAN Snap to avoid a duplicate.' >&2
   exit 1
