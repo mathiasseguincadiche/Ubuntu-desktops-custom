@@ -19,8 +19,25 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'Suites: mozilla' "$script"
   ! grep -Fq 'thunderbird-deb' "$script"
   grep -F 'Pin-Priority: 1000' "$script"
-  grep -F 'apt-get -y install firefox' "$script"
+  grep -F -- '--configure-only' "$script"
+  grep -F 'apt-get -y --allow-downgrades install firefox' "$script"
   ! grep -Eq 'install firefox thunderbird' "$script"
+}
+
+@test "Firefox Snap migration backs up verifies restores and retains profile" {
+  script="$REPO_ROOT/scripts/vendor/migrate_firefox_snap_to_mozilla_apt.sh"
+  grep -F 'Firefox is running. Quit Firefox completely before migration.' "$script"
+  grep -F 'Automatic profile merging is intentionally refused.' "$script"
+  grep -F 'tar -C "$desktop_home/snap/firefox/common/.mozilla" -czf "$archive" firefox' "$script"
+  grep -F 'sha256sum -c "$checksum"' "$script"
+  grep -F 'install_mozilla_repo.sh" --configure-only' "$script"
+  grep -F 'apt-get --simulate --allow-downgrades install firefox' "$script"
+  grep -F 'snap remove firefox' "$script"
+  grep -F 'tar -C "$desktop_home/.mozilla" -xzf "$archive"' "$script"
+  grep -F 'packages.mozilla.org' "$script"
+  grep -F 'Verified backup retained at:' "$script"
+  run grep -E 'rm -rf.*(firefox|\.mozilla)' "$script"
+  [ "$status" -ne 0 ]
 }
 
 @test "Proton Mail installer selects Stable DEB and verifies SHA512" {
