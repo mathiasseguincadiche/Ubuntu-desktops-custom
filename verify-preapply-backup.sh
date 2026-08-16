@@ -11,6 +11,21 @@ repo_restic="${RESTIC_REPOSITORY:-}"
 password_file="${RESTIC_PASSWORD_FILE:-}"
 proof="$REPO_ROOT/${REAL_APPLY_BACKUP_PROOF_FILE:-state/real-apply/backup-verified.pass}"
 
+backup_local_source_is_external() {
+  local source="$1" device name type tran removable hotplug
+  device="$(readlink -f -- "$source" 2>/dev/null || true)"
+  [[ -n "$device" && -b "$device" ]] || return 1
+
+  while read -r name type tran removable hotplug; do
+    [[ "$type" == disk ]] || continue
+    if [[ "$tran" == usb || "$removable" == 1 || "$hotplug" == 1 ]]; then
+      return 0
+    fi
+  done < <(lsblk -s -n -p -o NAME,TYPE,TRAN,RM,HOTPLUG "$device")
+
+  return 1
+}
+
 if ! apply_gate_require_clean_worktree; then
   printf '%s\n' 'BACKUP VERIFY BLOCKED: tracked Git worktree must be clean.' >&2
   exit "$EXIT_SECURITY_BLOCK"
@@ -26,10 +41,14 @@ repo="${repo_runtime:-$repo_restic}"
   exit "$EXIT_INVALID_ARGUMENT"
 }
 [[ -n "$password_file" && -r "$password_file" ]] || { printf '%s\n' 'BACKUP VERIFY BLOCKED: readable RESTIC_PASSWORD_FILE is required.' >&2; exit "$EXIT_INVALID_ARGUMENT"; }
-command -v restic >/dev/null 2>&1 || { printf '%s\n' 'BACKUP VERIFY BLOCKED: restic is not installed.' >&2; exit "$EXIT_PRECHECK_FAILED"; }
-command -v python3 >/dev/null 2>&1 || { printf '%s\n' 'BACKUP VERIFY BLOCKED: python3 is required.' >&2; exit "$EXIT_PRECHECK_FAILED"; }
+for cmd in restic python3 findmnt lsblk readlink; do
+  command -v "$cmd" >/dev/null 2>&1 || { printf 'BACKUP VERIFY BLOCKED: required command missing: %s\n' "$cmd" >&2; exit "$EXIT_PRECHECK_FAILED"; }
+done
 
-# A local repository must live on a different mounted filesystem from root.
+# A local repository must be on a different filesystem and, when external-target
+# policy is enabled, on storage that the kernel exposes as USB/removable/hotplug.
+# Remote Restic backends are not local block devices and therefore bypass only
+# this local-device classification, not the snapshot/integrity/commit gates.
 repo_path=''
 case "$repo" in
   /*) repo_path="$repo" ;;
@@ -44,6 +63,12 @@ if [[ -n "$repo_path" ]]; then
     printf '%s\n' 'BACKUP VERIFY BLOCKED: local repository is on the protected root filesystem.' >&2
     exit "$EXIT_SECURITY_BLOCK"
   }
+
+  if is_true "${BACKUP_REQUIRE_EXTERNAL_TARGET:-true}" && ! backup_local_source_is_external "$repo_source"; then
+    printf 'BACKUP VERIFY BLOCKED: local repository is not proven external (source=%s).\n' "$repo_source" >&2
+    printf '%s\n' 'Use USB/removable/hotplug storage or a supported remote Restic backend; a second internal SSD is insufficient.' >&2
+    exit "$EXIT_SECURITY_BLOCK"
+  fi
 fi
 
 printf '%s\n' 'Checking that at least one Restic snapshot exists...'

@@ -11,6 +11,8 @@ Ce document décrit la sauvegarde, la restauration et la reprise après sinistre
 - restaurer d'abord en staging ;
 - ne jamais supprimer le dernier backup vérifié avant qu'un nouveau backup valide existe.
 
+Une cible locale n'est considérée externe que si son périphérique bloc est exposé comme USB, removable ou hotplug. **Un second SSD interne ne satisfait pas** `BACKUP_REQUIRE_EXTERNAL_TARGET=true`, même s'il possède un filesystem distinct de `/`. Un backend Restic distant constitue également une cible externe valide.
+
 ## 2. Backup pré-APPLY
 
 Fournir les secrets uniquement au runtime. La variable canonique du projet est `BACKUP_REPOSITORY_RUNTIME`; `RESTIC_REPOSITORY` est aussi accepté comme alias standard Restic. Ne pas définir les deux avec des valeurs différentes.
@@ -28,6 +30,8 @@ export RESTIC_REPOSITORY=/chemin/externe/restic
 export RESTIC_PASSWORD_FILE=/chemin/securise/restic-password
 ./verify-preapply-backup.sh
 ```
+
+Pour un dépôt local, le verifier contrôle le filesystem puis remonte la chaîne bloc avec `lsblk`; un NVMe/SATA interne est refusé si aucune propriété USB/removable/hotplug ne prouve le caractère externe. Cette classification est volontairement fail-closed.
 
 La preuve produite doit être liée au commit courant et respecter la fenêtre de fraîcheur configurée.
 
