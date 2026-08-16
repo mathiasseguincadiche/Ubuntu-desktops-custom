@@ -36,6 +36,26 @@ Les statuts opérateur sont volontairement limités :
 
 Les couleurs sont activées uniquement sur un terminal compatible. La variable standard `NO_COLOR` désactive les couleurs.
 
+## Progression live pendant l'APPLY réel
+
+Une étape de haut niveau peut contenir plusieurs mutations longues. Le mode opérateur affiche donc, uniquement pendant un APPLY réel validé, la sous-action mutante en cours avec un libellé humain.
+
+Exemple pour `host.apps` :
+
+```text
+  [06/41] Applications desktop ............................ EN COURS
+          ├─ Nettoyage des applications retirées .......... OK
+          ├─ Paquets Ubuntu — FileZilla, Remmina… ......... OK
+          ├─ Firefox — dépôt officiel Mozilla ............. OK
+          ├─ Proton Mail Desktop ........................... EN COURS
+```
+
+Les commandes exactes ne sont jamais recopiées dans cette vue. Elles restent dans `commands.log`, tandis que leurs sorties restent dans `modules.log` et les traces moteur dans `main.log`.
+
+Cette télémétrie live est centralisée dans `lib/live_progress.sh` et branchée sur `run_mutating` dans `lib/runner.sh`. Elle couvre les principales mutations HOST, KVM et VM_DEVOPS sans modifier leurs gates ni leur comportement fonctionnel.
+
+Le dry-run n'affiche pas ces sous-actions mutantes en direct : il conserve sa vue synthétique des 41 modules et journalise les commandes simulées dans les logs techniques.
+
 ## Logs d'une exécution
 
 Chaque `RUN_ID` possède un répertoire sous `logs/` :
@@ -70,6 +90,8 @@ Une erreur opérateur doit répondre immédiatement à quatre questions :
 3. quelle action effectuer ;
 4. où trouver le log technique.
 
+Une sous-action mutante en échec passe immédiatement de `EN COURS` à `ÉCHEC`, puis le module et l'orchestrateur conservent leur comportement fail-closed habituel.
+
 Une erreur ne doit jamais être masquée pour rendre l'interface plus esthétique.
 
 ## Contrat de non-régression
@@ -77,7 +99,10 @@ Une erreur ne doit jamais être masquée pour rendre l'interface plus esthétiqu
 La CI vérifie notamment que :
 
 - `lib/ui.sh` reste la couche UI centrale ;
+- `lib/live_progress.sh` fournit uniquement la télémétrie opérateur des mutations réelles ;
 - les commandes complètes restent journalisées ;
 - les phases des 41 modules sont redirigées vers le log technique en mode opérateur ;
+- le dry-run n'active pas la progression live des mutations ;
+- un code retour d'échec d'une commande reste inchangé après affichage de la sous-action ;
 - le menu conserve l'ordre sécurisé `1 -> 2 -> 3 -> 4` ;
 - le backup Restic conserve ses gates fail-closed, son restore-test et `BACKUP_VERIFIED`.
