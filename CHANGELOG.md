@@ -11,6 +11,8 @@
 - Politique applicative auditée par source upstream : Mozilla APT pour Firefox, Proton Mail via DEB officiel vérifié SHA-512, dépôts éditeurs pour VS Code/Brave/ONLYOFFICE/Steam, VideoLAN Snap pour VLC, Flathub upstream pour Bitwarden/OBS/Extension Manager et APT Ubuntu lorsque l'intégration native reste préférable.
 - Thunderbird et PDF Arranger retirés du desired state ; aucune intégration DuckDuckGo n'est installée ou imposée par le projet.
 - Diagnostic read-only des gestionnaires et de la provenance APT/Flatpak, avec détection `DRIFT`/`DUPLICATE` et migrations cross-manager fail-closed hors retraits explicitement décidés.
+- Gate global de packaging : REAL APPLY bloqué avant toute mutation si `DRIFT>0` ou `DUPLICATE>0`; contrôle post-HOST obligatoire avec `PLANNED=0`, `DRIFT=0`, `DUPLICATE=0`.
+- Nettoyage des applications retirées contrôlé sur APT/Snap/Flatpak afin d'éviter les paquets desktop parasites.
 - Socle gaming Steam, GameMode, Gamescope, MangoHud/MangoApp et runtime Vulkan.
 - Observabilité matérielle NVMe/SMART, températures, PCI/USB, réseau, audio et webcam.
 
@@ -46,6 +48,6 @@
 ### Exécution et qualité
 - Menu interactif comme point d'entrée recommandé.
 - Diagnostic, dry-run intégral, états, logs, rapports, reprise et postchecks par module.
-- APPLY fail-closed avec TTY, preflight HOST, preuve dry-run du commit courant, backup vérifié et confirmations globales/par domaine.
+- APPLY fail-closed avec TTY, preflight HOST, preuve dry-run du commit courant, backup vérifié, packaging applicatif propre et confirmations globales/par domaine.
 - Tests Bats unitaires/intégration/dry-run, ShellCheck, non-régression, résolution des paquets Ubuntu 26.04 et laboratoire VM réel.
 - Documentation d'installation, contrat d'exécution, runbooks HOST/KVM/VM/backup, troubleshooting et guide KVM débutant.
