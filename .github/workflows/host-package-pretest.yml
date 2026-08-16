@@ -167,14 +167,6 @@ jobs:
           [[ "$package_name" == proton-mail ]]
           sudo apt-get --simulate -y install "$deb" >/dev/null
           echo "PASS PROTON MAIL: $version ($package_name)"
-      - name: Validate DuckDuckGo official Linux integration targets
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          curl -fsSI https://addons.mozilla.org/firefox/downloads/latest/duckduckgo-for-firefox/latest.xpi >/dev/null
-          curl -fsSI 'https://duckduckgo.com/?q=test' >/dev/null
-          grep -F 'jid1-ZAdIEUB7XOzOJw@jetpack' scripts/vendor/configure_duckduckgo.sh
-          grep -F 'DefaultSearchProviderName' scripts/vendor/configure_duckduckgo.sh
       - name: Validate preferred Flathub applications
         shell: bash
         run: |

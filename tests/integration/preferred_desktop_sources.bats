@@ -21,13 +21,14 @@ setup() {
   grep -Eq '^xournalpp\|managed\|apt\|' "$policy"
 }
 
-@test "HOST app convergence uses Proton Mail and DuckDuckGo and retires Thunderbird/PDF Arranger" {
+@test "HOST app convergence uses Proton Mail and retires Thunderbird PDF Arranger and DuckDuckGo policy" {
   module="$REPO_ROOT/modules/host/05_desktop_apps.sh"
   grep -Fq 'scripts/vendor/remove_retired_desktop_apps.sh' "$module"
   grep -Fq 'scripts/vendor/install_proton_mail.sh' "$module"
-  grep -Fq 'scripts/vendor/configure_duckduckgo.sh' "$module"
+  ! grep -Fq 'scripts/vendor/configure_duckduckgo.sh' "$module"
   ! grep -Eq 'apt-get .*install.*pdfarranger' "$module"
   ! grep -Eq 'apt-get .*install.*thunderbird' "$module"
+  grep -Fq '20-duckduckgo.json' "$module"
   grep -Fq 'flatpak info --system com.bitwarden.desktop' "$module"
   grep -Fq 'flatpak info --system com.obsproject.Studio' "$module"
   grep -Fq 'flatpak info --system com.mattjakeman.ExtensionManager' "$module"
