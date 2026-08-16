@@ -33,24 +33,21 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F '[[ "$package_name" == proton-mail ]]' "$script"
 }
 
-@test "DuckDuckGo integration uses official Firefox extension and browser policies" {
-  script="$REPO_ROOT/scripts/vendor/configure_duckduckgo.sh"
-  grep -F 'jid1-ZAdIEUB7XOzOJw@jetpack' "$script"
-  grep -F 'https://addons.mozilla.org/firefox/downloads/latest/duckduckgo-for-firefox/latest.xpi' "$script"
-  grep -F '.policies.SearchEngines.Default = "DuckDuckGo"' "$script"
-  grep -F 'DefaultSearchProviderName' "$script"
-  grep -F 'https://duckduckgo.com/?q={searchTerms}' "$script"
-}
-
-@test "retired app cleanup removes packages but preserves user data" {
+@test "retired app cleanup removes packages and stale DuckDuckGo policy but preserves user data" {
   script="$REPO_ROOT/scripts/vendor/remove_retired_desktop_apps.sh"
   grep -F 'thunderbird pdfarranger' "$script"
   grep -F 'snap remove thunderbird' "$script"
   grep -F 'org.mozilla.Thunderbird' "$script"
   grep -F 'com.github.jeromerobert.pdfarranger' "$script"
-  grep -F 'User data and Thunderbird profiles were preserved.' "$script"
+  grep -F '20-duckduckgo.json' "$script"
+  grep -F 'jid1-ZAdIEUB7XOzOJw@jetpack' "$script"
+  grep -F 'User data, Thunderbird profiles and unrelated browser policies were preserved.' "$script"
   run grep -E 'rm -rf.*(thunderbird|\.thunderbird)' "$script"
   [ "$status" -ne 0 ]
+}
+
+@test "DuckDuckGo installer is absent" {
+  [ ! -e "$REPO_ROOT/scripts/vendor/configure_duckduckgo.sh" ]
 }
 
 @test "VS Code uses Microsoft signed repository" {
