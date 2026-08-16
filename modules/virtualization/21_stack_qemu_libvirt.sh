@@ -21,6 +21,7 @@ QEMU / LIBVIRT STACK PLAN:
 - install QEMU x86 system emulator and qemu-img utilities
 - install libvirt system daemon and clients for qemu:///system
 - install virt-install/virt-manager/virt-viewer; CLI remains the primary administration path
+- install SPICE guest-display tooling, swtpm and virgl/virtio-gpu support for optional desktop guests
 - grant the interactive operator membership in libvirt and kvm groups
 - package/service setup remains distribution-managed; no custom daemon replacement
 - every mutation is executed only through run_mutating
@@ -33,7 +34,8 @@ kvm_stack_apply() {
   run_mutating KVM sudo env DEBIAN_FRONTEND=noninteractive apt-get -y install \
     qemu-system-x86 qemu-utils \
     libvirt-daemon-system libvirt-clients \
-    virt-install virt-manager virt-viewer || return "$EXIT_APPLY_FAILED"
+    virt-install virt-manager virt-viewer \
+    spice-client-gtk swtpm swtpm-tools libvirglrenderer1 || return "$EXIT_APPLY_FAILED"
   run_mutating KVM sudo usermod -aG libvirt,kvm "$operator" || return "$EXIT_APPLY_FAILED"
 }
 
@@ -45,6 +47,8 @@ kvm_stack_postcheck() {
   command -v virsh >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
   command -v qemu-img >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
   command -v virt-install >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+  command -v swtpm >/dev/null 2>&1 || return "$EXIT_POSTCHECK_FAILED"
+  [[ -e /dev/dri/renderD128 ]] || log_warn KVM 'render node /dev/dri/renderD128 absent: accelerated desktop guest profile will require review'
   sudo virsh --connect "${LIBVIRT_URI:-qemu:///system}" list --all >/dev/null || return "$EXIT_POSTCHECK_FAILED"
   log_warn KVM 'operator group membership may require logout/login before non-sudo libvirt access is available'
 }
