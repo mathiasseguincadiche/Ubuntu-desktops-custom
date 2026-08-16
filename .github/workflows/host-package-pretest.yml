@@ -59,3 +59,12 @@ jobs:
             fi
           done
           exit "$failed"
+      - name: Validate current official Ubuntu OS catalog
+        shell: bash
+        run: |
+          chmod +x scripts/kvm/refresh_os_catalog.sh
+          OS_CATALOG_STATE_DIR="$RUNNER_TEMP/os-catalog" scripts/kvm/refresh_os_catalog.sh
+          grep -Fx 'status=verified' "$RUNNER_TEMP/os-catalog/os-catalog.resolved"
+          grep -F 'artifact=ubuntu-26.04-desktop-amd64.iso|sha256=' "$RUNNER_TEMP/os-catalog/os-catalog.resolved"
+          grep -F 'artifact=ubuntu-26.04-live-server-amd64.iso|sha256=' "$RUNNER_TEMP/os-catalog/os-catalog.resolved"
+          grep -F 'artifact=ubuntu-26.04-server-cloudimg-amd64.img|sha256=' "$RUNNER_TEMP/os-catalog/os-catalog.resolved"
