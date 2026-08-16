@@ -27,6 +27,7 @@ if [[ "$MODE" == '--apply' ]]; then
   fi
   if ! apply_gate_require_tty; then
     log_info ENGINE 'REAL APPLY BLOCKED: an interactive TTY is mandatory.'
+    ui_error 'REAL APPLY BLOCKED: an interactive TTY is mandatory.'
     ui_blocked 'INSTALLATION RÉELLE BLOQUÉE' \
       'Un terminal interactif est obligatoire.' \
       'Aucune modification n’a été effectuée.' \
