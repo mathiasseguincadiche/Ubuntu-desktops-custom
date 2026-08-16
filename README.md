@@ -14,7 +14,7 @@ Version actuelle : **1.0.0**
 
 ## Avant de commencer
 
-Le projet cible une installation Ubuntu Desktop 26.04 LTS native. Lire d'abord `docs/INSTALLATION_GUIDE.md` et conserver un backup externe vérifié avant toute exécution réelle.
+Le projet cible une installation Ubuntu Desktop 26.04 LTS native. Lire d'abord `docs/INSTALLATION_GUIDE.md` et `docs/EXECUTION_CONTRACT.md`, puis conserver un backup externe vérifié avant toute exécution réelle.
 
 Après clonage :
 
@@ -57,6 +57,8 @@ README
   ↓
 INSTALLATION_GUIDE
   ↓
+EXECUTION_CONTRACT
+  ↓
 ./menu.sh
   ↓
 Diagnostic
@@ -96,6 +98,18 @@ Ne lancer `--apply` qu'après validation du diagnostic, du dry-run et du backup 
 
 Voir `docs/NETWORK_KVM_NAT_CUSTOM.md`.
 
+## Catalogue OS KVM
+
+`osinfo-db` fournit les métadonnées invitées à libvirt/virt-install. Le catalogue propre au projet est défini dans `manifests/virtualization/os-catalog.yml` et, pendant la convergence KVM réelle, les médias Ubuntu 26.04 configurés sont résolus contre les `SHA256SUMS` officiels Canonical.
+
+La preuve runtime courante est écrite dans :
+
+```text
+state/kvm/os-catalog.resolved
+```
+
+Le catalogue n'est considéré prêt que si tous les médias configurés disposent d'un SHA-256 officiel courant.
+
 ## VM déployée automatiquement
 
 La VM principale créée par l'installation est `ubuntu-devops` : Ubuntu Server 26.04 LTS sans environnement graphique, dédiée aux outils DevOps/DevSecOps. Les outils DevOps restent dans cette VM et ne sont pas installés sur le HOST.
@@ -122,13 +136,15 @@ Le chemin d'exécution réelle reste **fail-closed** : `REAL_MACHINE_APPROVED=fa
 
 ## Validation GitHub
 
-La base a passé :
+La base couvre :
 
 - tests unitaires ;
 - tests d'intégration ;
 - contrats dry-run ;
 - ShellCheck ;
 - non-régression ;
+- résolution des paquets HOST et KVM sur Ubuntu 26.04 ;
+- vérification en ligne du catalogue Ubuntu 26.04 contre les `SHA256SUMS` officiels Canonical ;
 - pré-test réel Ubuntu Server 26.04 sous KVM, incluant installation de la pile DevOps/DevSecOps, smoke tests Docker et persistance après reboot.
 
 Dernier verdict de référence du laboratoire VM : `REAL UBUNTU 26.04 VM PRE-TEST PASS`.
@@ -138,6 +154,7 @@ Dernier verdict de référence du laboratoire VM : `REAL UBUNTU 26.04 VM PRE-TES
 Point d'entrée documentaire : **`docs/DOCUMENTATION_INDEX.md`**.
 
 - `docs/INSTALLATION_GUIDE.md` — installation et première exécution de A à Z ;
+- `docs/EXECUTION_CONTRACT.md` — conditions et gates obligatoires avant toute exécution réelle ;
 - `docs/RUNBOOK_OPERATIONS.md` — **runbook principal** : exploitation, maintenance, KVM, VM DevOps, VM graphiques optionnelles, backup, restore, disaster recovery, incidents et rollback ;
 - `docs/HOST_RUNBOOK.md` — exploitation du HOST Ubuntu Desktop, matériel, firmware, Intel Arc, desktop et gaming ;
 - `docs/GUIDE_DEBUTANT_KVM_LIBVIRT.md` — guide CLI KVM/libvirt pour l'administration quotidienne ;

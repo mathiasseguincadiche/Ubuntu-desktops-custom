@@ -72,6 +72,22 @@ virsh -c qemu:///system domiflist ubuntu-devops
 virsh -c qemu:///system domifaddr ubuntu-devops
 ```
 
+L'administration officielle reste CLI-first. `virt-manager` et `virt-viewer` sont installés comme outils graphiques de secours/inspection et ne remplacent pas `qemu:///system`, `virsh` et `virt-install` comme source de vérité.
+
+### Catalogue OS KVM
+
+Le socle installe `osinfo-db` pour les métadonnées de systèmes invités utilisées par libvirt/virt-install. En complément, le projet maintient son catalogue canonique dans `manifests/virtualization/os-catalog.yml`.
+
+Pendant la convergence KVM réelle, `scripts/kvm/refresh_os_catalog.sh` interroge uniquement les fichiers `SHA256SUMS` officiels Canonical configurés dans ce manifeste. Il vérifie que les médias Ubuntu Desktop 26.04, Ubuntu Server 26.04 et l'image cloud Server 26.04 sont toujours publiés et résout leur SHA-256 courant sans télécharger les images complètes.
+
+La vue runtime vérifiée est écrite dans :
+
+```text
+state/kvm/os-catalog.resolved
+```
+
+Le postcheck KVM exige `status=verified` et une entrée SHA-256 pour chacun des trois médias avant de considérer le catalogue opérationnel.
+
 Voir aussi `GUIDE_DEBUTANT_KVM_LIBVIRT.md`.
 
 ## 5. Réseau devops-nat
@@ -198,7 +214,7 @@ Aucun bypass TPM/Secure Boot n'est prévu.
 
 ### Règle graphique
 
-Le GPU passthrough/VFIO est hors contrat et ne doit pas être ajouté. Les VM graphiques utilisent exclusivement l'accélération virtuelle partagée prévue par leurs profils.
+Le GPU passthrough/VFIO est interdit et ne doit pas être ajouté. Les VM graphiques utilisent exclusivement l'accélération virtuelle partagée prévue par leurs profils.
 
 Voir `KVM_DESKTOP_VM_PROFILES.md`.
 
@@ -288,8 +304,8 @@ Répertoires du projet :
 
 - `logs/` : journalisation d'exécution ;
 - `reports/` : rapports de diagnostic/dry-run ;
-- `state/` : état et preuves locales ;
-- GitHub Actions : tests, ShellCheck, non-régression et laboratoire VM réel.
+- `state/` : état et preuves locales, dont le catalogue OS KVM résolu ;
+- GitHub Actions : tests, ShellCheck, non-régression, pré-test paquets/catalogue Ubuntu 26.04 et laboratoire VM réel.
 
 Lors d'un incident, conserver le rapport et le log correspondant avant toute correction.
 

@@ -14,7 +14,8 @@ Les VM graphiques sont optionnelles. Elles ne sont pas créées pendant l'instal
 - machine Q35 ;
 - disques QCOW2 ;
 - VirtIO pour disque/réseau lorsque le guest le supporte ;
-- aucune VM optionnelle ne contourne l'isolation réseau du projet.
+- aucune VM optionnelle ne contourne l'isolation réseau du projet ;
+- aucun GPU passthrough/VFIO : le GPU Intel Arc reste propriété du HOST.
 
 Les valeurs sont définies dans `config/vm-profiles.conf`. Le helper `scripts/kvm/vm-profile` permet d'afficher un profil, de prévisualiser la commande et de créer explicitement la VM à la demande.
 
@@ -36,7 +37,7 @@ Le profil utilise le chemin graphique partagé le plus performant et maintenable
 
 Le render node n'est **jamais supposé être `/dev/dri/renderD128`**. Le helper parcourt les DRM render nodes et choisit celui dont le vendor PCI est Intel (`0x8086`). C'est nécessaire sur une machine exposant à la fois l'iGPU Ryzen et l'Intel Arc B580, car l'ordre `renderD128`, `renderD129`, etc. n'est pas un contrat stable.
 
-Ce chemin conserve l'Arc disponible pour GNOME/Wayland sur le HOST tout en fournissant une accélération 3D matérielle partagée à la VM. Un passthrough PCI/VFIO complet reste un autre mode d'architecture : il peut offrir des performances proches du natif, mais exige IOMMU, isolation du périphérique et propriété exclusive d'un GPU par le guest pendant son utilisation.
+Ce chemin conserve l'Arc disponible pour GNOME/Wayland sur le HOST tout en fournissant une accélération 3D matérielle partagée à la VM. **Le passthrough PCI/VFIO n'est ni implémenté, ni supporté, ni autorisé par ce projet.**
 
 Prévisualisation :
 

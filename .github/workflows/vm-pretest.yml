@@ -3,14 +3,14 @@ name: vm-pretest
 on:
   workflow_dispatch:
   push:
-    branches: [architecture/skeleton-v1]
+    branches: [main]
     paths:
       - '.github/workflows/vm-pretest.yml'
       - '.github/scripts/vm-pretest.sh'
       - 'scripts/devops-vm/**'
       - 'modules/devops-vm/**'
       - 'config/devops-vm.conf'
-      - 'manifests/devops-vm-tools.yml'
+      - 'manifests/devops-vm/**'
   pull_request:
     paths:
       - '.github/workflows/vm-pretest.yml'
@@ -18,7 +18,7 @@ on:
       - 'scripts/devops-vm/**'
       - 'modules/devops-vm/**'
       - 'config/devops-vm.conf'
-      - 'manifests/devops-vm-tools.yml'
+      - 'manifests/devops-vm/**'
 
 permissions:
   contents: read

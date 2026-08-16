@@ -13,6 +13,8 @@ Converger une installation native Ubuntu Desktop 26.04 LTS vers la workstation d
 - Accès `sudo` pour l'opérateur.
 - Cible de sauvegarde externe disponible avant l'APPLY réel.
 
+Lire également `EXECUTION_CONTRACT.md` avant la première exécution réelle.
+
 ## 2. Récupérer la version officielle
 
 ```bash
@@ -24,6 +26,12 @@ cat VERSION
 ```
 
 La version attendue pour ce guide est `1.0.0`.
+
+Le point d'entrée recommandé est ensuite :
+
+```bash
+./menu.sh
+```
 
 ## 3. Diagnostic initial
 
@@ -74,6 +82,8 @@ Ordre :
 3. VM_DEVOPS
 4. BACKUP
 
+Pendant la phase KVM, le catalogue OS est résolu à partir des `SHA256SUMS` officiels Canonical. La preuve courante est écrite dans `state/kvm/os-catalog.resolved` et doit finir avec `status=verified`.
+
 En cas d'échec, ne pas forcer la phase suivante.
 
 ## 7. Validation après installation
@@ -84,6 +94,7 @@ Relancer :
 ./diagnostic.sh
 virsh -c qemu:///system list --all
 virsh -c qemu:///system net-list --all
+cat state/kvm/os-catalog.resolved
 ```
 
 Puis valider `ubuntu-devops` et sa pile conformément à `RUNBOOK_OPERATIONS.md`.

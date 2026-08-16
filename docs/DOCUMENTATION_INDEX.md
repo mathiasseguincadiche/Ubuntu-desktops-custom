@@ -5,14 +5,15 @@ Cet index indique quel document utiliser selon l'opération à réaliser.
 ## Installation et première mise en service
 
 1. `INSTALLATION_GUIDE.md` — procédure canonique depuis Ubuntu Desktop 26.04 LTS propre jusqu'à l'APPLY protégé.
-2. `HOST_PREFLIGHT_CONTRACT.md` — conditions que le HOST doit respecter.
-3. `HOST_RUNBOOK.md` — exploitation du HOST physique, matériel, firmware, Intel Arc, desktop, terminal et gaming.
-4. `MODULE_EXECUTION_PLAN.md` — ordre HOST → KVM → VM_DEVOPS → BACKUP.
-5. `GUIDE_DEBUTANT_KVM_LIBVIRT.md` — administration KVM/libvirt CLI-first.
-6. `NETWORK_KVM_NAT_CUSTOM.md` — réseau NAT custom et isolation LAN.
-7. `KVM_DESKTOP_VM_PROFILES.md` — profils optionnels Ubuntu Desktop et Windows 11, affichage accéléré et cycle de création.
-8. `VM_DEVOPS_RUNBOOK.md` — exploitation de `ubuntu-devops` et de la pile DevOps/DevSecOps.
-9. `BACKUP_RESTORE_RUNBOOK.md` — sauvegarde, restauration et Disaster Recovery.
+2. `EXECUTION_CONTRACT.md` — gates et conditions obligatoires avant toute mutation réelle.
+3. `HOST_PREFLIGHT_CONTRACT.md` — conditions que le HOST doit respecter.
+4. `HOST_RUNBOOK.md` — exploitation du HOST physique, matériel, firmware, Intel Arc, desktop, terminal et gaming.
+5. `MODULE_EXECUTION_PLAN.md` — ordre HOST → KVM → VM_DEVOPS → BACKUP.
+6. `GUIDE_DEBUTANT_KVM_LIBVIRT.md` — administration KVM/libvirt CLI-first.
+7. `NETWORK_KVM_NAT_CUSTOM.md` — réseau NAT custom et isolation LAN.
+8. `KVM_DESKTOP_VM_PROFILES.md` — profils optionnels Ubuntu Desktop et Windows 11, affichage accéléré et cycle de création.
+9. `VM_DEVOPS_RUNBOOK.md` — exploitation de `ubuntu-devops` et de la pile DevOps/DevSecOps.
+10. `BACKUP_RESTORE_RUNBOOK.md` — sauvegarde, restauration et Disaster Recovery.
 
 ## Exploitation quotidienne
 
@@ -26,6 +27,7 @@ Cet index indique quel document utiliser selon l'opération à réaliser.
 ## Architecture et fonctionnement interne
 
 - `ARCHITECTURE_TECHNIQUE.md` — architecture générale et séparation des responsabilités.
+- `EXECUTION_CONTRACT.md` — contrat de sécurité de l'exécution réelle.
 - `ORCHESTRATION_ENGINE.md` — moteur, phases, états, reprise et exécution.
 - `NETWORK_KVM_NAT_CUSTOM.md` — contrat `devops-nat`, isolation LAN et diagnostic réseau.
 - `KVM_DESKTOP_VM_PROFILES.md` — contrats de ressources, UEFI/TPM/VirtIO et accélération graphique des VM Desktop.
@@ -40,7 +42,7 @@ Le `RUNBOOK_OPERATIONS.md` conserve la synthèse opérationnelle et l'ordre de D
 
 ## Validation
 
-GitHub Actions couvre les tests unitaires, intégration, dry-run, ShellCheck, non-régression et le laboratoire Ubuntu Server 26.04 KVM réel.
+GitHub Actions couvre les tests unitaires, intégration, dry-run, ShellCheck, non-régression, la résolution des paquets HOST/KVM sous Ubuntu 26.04, le contrôle courant du catalogue OS Canonical et le laboratoire Ubuntu Server 26.04 KVM réel.
 
 ## Parcours recommandé
 
@@ -50,6 +52,8 @@ Première utilisation :
 README.md
    ↓
 INSTALLATION_GUIDE.md
+   ↓
+EXECUTION_CONTRACT.md
    ↓
 HOST_RUNBOOK.md
    ↓
