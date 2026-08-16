@@ -1,79 +1,94 @@
 # Profils KVM pour VM graphiques
 
-Les VM graphiques sont des profils optionnels. Elles ne sont pas créées pendant l'installation automatique de la workstation. La VM automatiquement provisionnée reste `ubuntu-devops`, Ubuntu Server 26.04 LTS sans environnement graphique.
+Les VM graphiques sont optionnelles. Elles ne sont pas créées pendant l'installation automatique de la workstation : la VM provisionnée automatiquement reste `ubuntu-devops`, Ubuntu Server 26.04 LTS sans environnement graphique.
 
 ## Principes communs
 
-- hyperviseur : KVM/QEMU + libvirt ;
-- administration principale : CLI (`virsh`, `virt-install`) ;
-- `virt-manager` : interface graphique de secours ;
-- stockage : pool `devops-data` ;
-- réseau par défaut : `devops-nat` ;
-- autostart : désactivé ;
-- CPU : `host-passthrough` ;
-- machine : Q35 ;
-- disque : QCOW2 ;
-- les ISO, images et checksums sont résolus par le catalogue avant création ;
-- aucune VM optionnelle ne doit contourner les règles d'isolation du réseau KVM.
+- KVM/QEMU + libvirt ;
+- administration CLI-first avec `virsh` et `virt-install` ;
+- `virt-manager` et `virt-viewer` pour la console graphique et l'inspection ;
+- pool `devops-data` ;
+- réseau `devops-nat` ;
+- autostart désactivé ;
+- CPU `host-passthrough` ;
+- machine Q35 ;
+- disques QCOW2 ;
+- aucune VM optionnelle ne contourne l'isolation réseau du projet.
+
+Les valeurs sont définies dans `config/vm-profiles.conf`. Le helper `scripts/kvm/vm-profile` affiche les profils et génère une commande `virt-install` révisable sans jamais l'exécuter lui-même.
 
 ## Ubuntu Desktop 26.04 LTS
 
-Profil par défaut :
+Profil : 6 vCPU, 8 Gio RAM, 100 Gio QCOW2, UEFI, réseau VirtIO sur `devops-nat`.
 
-- 6 vCPU ;
-- 8 Gio RAM ;
-- disque QCOW2 100 Gio ;
-- UEFI ;
-- virtio-gpu ;
-- accélération 3D VirGL/OpenGL ;
-- SPICE avec OpenGL ;
-- accès au render node DRM du HOST ;
-- SPICE agent pour presse-papiers et redimensionnement ;
-- redirection USB ;
+### Accélération graphique retenue
+
+Le profil utilise le chemin graphique partagé le plus performant et maintenable avec l'Intel Arc B580 conservée par le HOST :
+
+- virtio-gpu/virtio-video avec accélération 3D ;
+- VirGL/OpenGL ;
+- SPICE GL ;
+- render node DRM HOST `/dev/dri/renderD128` ;
+- CPU `host-passthrough` ;
 - audio PipeWire ;
-- réseau `devops-nat`.
+- canal SPICE agent pour presse-papiers/redimensionnement ;
+- redirection USB.
 
-### Choix graphique
+Ce choix permet l'accélération 3D dans la VM sans retirer la B580 à GNOME/Wayland sur le HOST. Le passthrough PCI/VFIO complet n'est pas le profil par défaut : avec une seule carte graphique principale, il ferait perdre le GPU au HOST pendant l'utilisation de la VM et impose un contrat IOMMU/reset distinct. Il pourra être traité séparément si un second GPU est ajouté.
 
-Le profil utilise `virtio-gpu` + VirGL/SPICE GL avec le render node du HOST. C'est le profil graphique accéléré partagé retenu pour une VM Linux Desktop : il évite de retirer l'Intel Arc B580 au HOST, conserve la session GNOME/Wayland du HOST et fournit une accélération 3D matérielle à la VM lorsque la pile Mesa/libvirt/QEMU du HOST la supporte.
+Contrôles :
 
-Le passthrough PCI/VFIO de la carte graphique n'est pas activé par défaut. Avec une seule Arc B580 destinée au HOST, un passthrough complet ferait perdre la carte au bureau HOST pendant l'utilisation de la VM et impose des contraintes IOMMU/reset supplémentaires. Il pourra rester une fonctionnalité avancée distincte si un second GPU est ajouté plus tard.
+```bash
+ls -l /dev/dri/renderD128
+scripts/kvm/vm-profile show ubuntu-desktop
+scripts/kvm/vm-profile command ubuntu-desktop --iso /chemin/ubuntu-26.04-desktop-amd64.iso
+```
+
+La dernière commande ne crée rien : elle imprime uniquement la commande `virt-install`.
 
 ## Windows 11
 
-Profil par défaut :
+Profil : 8 vCPU, 16 Gio RAM, 200 Gio QCOW2, Q35, CPU `host-passthrough`, réseau VirtIO sur `devops-nat`.
 
-- 8 vCPU ;
-- 16 Gio RAM ;
-- disque QCOW2 200 Gio ;
-- Q35 ;
-- UEFI Secure Boot ;
-- TPM 2.0 émulé via swtpm ;
+Le contrat prévoit :
+
+- UEFI avec Secure Boot comme cible ;
+- TPM 2.0 émulé par `swtpm` ;
 - disque VirtIO ;
 - réseau VirtIO ;
-- ISO pilotes VirtIO obligatoire ;
-- SPICE et agent invité ;
-- redirection USB ;
-- audio PipeWire ;
-- réseau `devops-nat`.
+- ISO VirtIO obligatoire ;
+- SPICE/virtio-video ;
+- agent invité, audio et redirection USB.
 
-Windows 11 doit être installé avec ses exigences normales UEFI/Secure Boot/TPM ; aucun bypass des contrôles matériels Windows n'est prévu.
+Aucun bypass des exigences Windows 11 n'est prévu.
+
+Prévisualisation :
+
+```bash
+scripts/kvm/vm-profile show windows-11
+scripts/kvm/vm-profile command windows-11 \
+  --iso /chemin/Windows11.iso \
+  --virtio-iso /chemin/virtio-win.iso
+```
 
 ## Ressources de la workstation
 
-Les profils sont dimensionnés pour rester compatibles avec le HOST 48 Gio / Ryzen 7 7700. Ils représentent des valeurs par défaut, pas une obligation. Avant création, l'outil de gestion doit permettre d'ajuster RAM, vCPU et taille disque tout en refusant une allocation manifestement dangereuse pour le HOST.
+Les profils sont dimensionnés pour le HOST 48 Gio / Ryzen 7 7700. Ce sont des valeurs par défaut. Ne pas démarrer toutes les VM lourdes simultanément sans conserver une marge suffisante pour le HOST : `ubuntu-devops` 16 Gio + Windows 11 16 Gio + Ubuntu Desktop 8 Gio représente déjà 40 Gio configurés.
 
-## Cycle de création attendu
+## Réseau
+
+Les profils utilisent `devops-nat` : `192.168.50.0/24`, passerelle `192.168.50.254`, DHCP `.100-.200`, DNS Quad9/Cloudflare. HOST ↔ VM, VM ↔ VM et VM → Internet sont autorisés ; VM → LAN physique, LAN → VM et Internet → VM restent bloqués.
+
+## Cycle de création
 
 1. choisir le profil ;
-2. résoudre l'ISO/image et son checksum ;
-3. contrôler les ressources HOST disponibles ;
-4. contrôler le réseau `devops-nat` ;
-5. afficher le plan ;
-6. demander confirmation ;
-7. créer le disque ;
-8. créer la VM ;
-9. démarrer l'installation ;
-10. exécuter les postchecks libvirt/réseau/graphique.
+2. résoudre/vérifier l'ISO ;
+3. contrôler les ressources HOST ;
+4. contrôler `devops-nat` ;
+5. afficher la configuration/commande ;
+6. faire valider l'opération par l'opérateur ;
+7. créer le disque et la VM ;
+8. démarrer l'installation ;
+9. exécuter les postchecks réseau/graphique/libvirt.
 
-Les opérations de création doivent rester transactionnelles : en cas d'échec avant finalisation, les volumes ou définitions libvirt créés par l'opération doivent être nettoyés sans toucher aux VM préexistantes.
+Toute future automatisation de création réelle doit rester transactionnelle : un échec doit nettoyer uniquement les ressources créées par l'opération et ne jamais toucher aux VM préexistantes.
