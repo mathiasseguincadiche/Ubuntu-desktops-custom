@@ -38,7 +38,7 @@ ui_live_action_label() {
     host.apps:*code*--install-extension*) printf '%s\n' 'VS Code — extension Remote SSH' ;;
     host.apps:*install_brave_repo.sh*) printf '%s\n' 'Brave Browser — dépôt officiel' ;;
     host.apps:*install_onlyoffice_repo.sh*) printf '%s\n' 'ONLYOFFICE Desktop Editors' ;;
-    host.apps:*install_flatpak_apps.sh*) printf '%s\n' 'Bitwarden + OBS + Extension Manager' ;;
+    host.apps:*install_flatpak_apps.sh*) printf '%s\n' 'Bitwarden, OBS Studio et Extension Manager — Flathub' ;;
     host.apps:*install_drawio_release.sh*) printf '%s\n' 'draw.io Desktop — release vérifiée' ;;
     host.apps:*) printf '%s\n' 'Configuration des applications desktop' ;;
 
