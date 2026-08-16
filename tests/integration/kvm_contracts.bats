@@ -15,7 +15,7 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 
 @test "implemented KVM mutations use secure runner" {
   local file
-  for file in 21_stack_qemu_libvirt.sh 22_firmware_uefi_tpm.sh 23_storage_pools.sh 24_networks.sh; do
+  for file in 21_stack_qemu_libvirt.sh 22_firmware_uefi_tpm.sh 23_storage_pools.sh 24_networks.sh 25_os_catalog.sh; do
     grep -F 'run_mutating KVM' "$REPO_ROOT/modules/virtualization/$file"
   done
 }
@@ -31,9 +31,21 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F "TABLE_NAME='ubuntu_desktops_custom_kvm'" "$REPO_ROOT/scripts/kvm/kvm_network_guard.sh"
 }
 
-@test "OS catalog pins official Ubuntu 26.04 artifacts" {
+@test "KVM stack keeps CLI primary with virt-manager as fallback and dynamic Intel render detection" {
+  grep -F 'virt-install virt-manager virt-viewer' "$REPO_ROOT/modules/virtualization/21_stack_qemu_libvirt.sh"
+  grep -F 'osinfo-db' "$REPO_ROOT/modules/virtualization/21_stack_qemu_libvirt.sh"
+  grep -F "0x8086" "$REPO_ROOT/modules/virtualization/21_stack_qemu_libvirt.sh"
+  run grep -F '/dev/dri/renderD128' "$REPO_ROOT/modules/virtualization/21_stack_qemu_libvirt.sh"
+  [ "$status" -ne 0 ]
+}
+
+@test "OS catalog pins official Ubuntu 26.04 artifacts and has a real verified refresh path" {
   run grep -E 'ubuntu-26\.04-(desktop-amd64\.iso|live-server-amd64\.iso|server-cloudimg-amd64\.img)' "$REPO_ROOT/manifests/virtualization/os-catalog.yml"
   [ "$status" -eq 0 ]
+  grep -F 'refresh_os_catalog.sh' "$REPO_ROOT/modules/virtualization/25_os_catalog.sh"
+  grep -F 'status=verified' "$REPO_ROOT/modules/virtualization/25_os_catalog.sh"
+  grep -F 'SHA256SUMS' "$REPO_ROOT/manifests/virtualization/os-catalog.yml"
+  grep -F 'curl -fsSL' "$REPO_ROOT/scripts/kvm/refresh_os_catalog.sh"
 }
 
 @test "optional desktop profiles remain outside automatic workstation provisioning" {
@@ -42,6 +54,13 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'WINDOWS11_VCPU=8' "$REPO_ROOT/config/vm-profiles.conf"
   grep -F 'WINDOWS11_RAM_MB=16384' "$REPO_ROOT/config/vm-profiles.conf"
   run grep -E 'ubuntu-desktop|windows-11' "$REPO_ROOT/manifests/module-plan.conf"
+  [ "$status" -ne 0 ]
+}
+
+@test "GPU passthrough is explicitly prohibited by the architecture" {
+  grep -F 'VM_PROFILE_GPU_PASSTHROUGH_ALLOWED=false' "$REPO_ROOT/config/vm-profiles.conf"
+  grep -F 'Aucun GPU passthrough/VFIO' "$REPO_ROOT/docs/RUNBOOK_OPERATIONS.md"
+  run grep -E -- '--host-device|<hostdev' "$REPO_ROOT/scripts/kvm/vm-profile"
   [ "$status" -ne 0 ]
 }
 
