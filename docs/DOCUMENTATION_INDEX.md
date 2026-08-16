@@ -2,6 +2,15 @@
 
 Cet index indique quel document utiliser selon l'opération à réaliser.
 
+## Principe documentaire
+
+La documentation décrit **l'état supporté du dépôt**, pas une succession de versions. Les informations de release restent centralisées dans :
+
+- `../VERSION` — version publiée ;
+- `../CHANGELOG.md` — historique des évolutions.
+
+Les procédures, runbooks et documents d'architecture doivent rester valables comme références opérationnelles. Les valeurs techniques exécutables sont portées par `config/`, `manifests/`, `modules/` et `scripts/`.
+
 ## Installation et première mise en service
 
 1. `INSTALLATION_GUIDE.md` — procédure canonique depuis Ubuntu Desktop 26.04 LTS propre jusqu'à l'APPLY protégé.
@@ -38,11 +47,13 @@ Cet index indique quel document utiliser selon l'opération à réaliser.
 
 Document canonique détaillé : `BACKUP_RESTORE_RUNBOOK.md`.
 
-Le `RUNBOOK_OPERATIONS.md` conserve la synthèse opérationnelle et l'ordre de Disaster Recovery complet.
+`RUNBOOK_OPERATIONS.md` conserve la synthèse opérationnelle et l'ordre de Disaster Recovery complet.
 
 ## Validation
 
-GitHub Actions couvre les tests unitaires, intégration, dry-run, ShellCheck, non-régression, la résolution des paquets HOST/KVM sous Ubuntu 26.04, le contrôle courant du catalogue OS Canonical et le laboratoire Ubuntu Server 26.04 KVM réel.
+GitHub Actions couvre les tests unitaires, intégration, dry-run, ShellCheck, non-régression, la résolution des paquets HOST/KVM sous Ubuntu 26.04, le contrôle du catalogue OS Canonical et le laboratoire Ubuntu Server 26.04 KVM réel.
+
+Le statut à prendre en compte est celui du **commit réellement destiné à l'exécution**. Aucun document de référence ne doit figer un numéro de workflow comme preuve permanente.
 
 ## Parcours recommandé
 
