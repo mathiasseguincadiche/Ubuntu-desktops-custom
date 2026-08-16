@@ -80,6 +80,16 @@ for scope in "$SCOPE_HOST" "$SCOPE_KVM" "$SCOPE_VM_DEVOPS" "$SCOPE_BACKUP"; do
     exit "$rc"
   }
   orchestrator_run_scope "$scope" || exit "$?"
+
+  if [[ "$scope" == "$SCOPE_HOST" ]] && is_true "${REAL_APPLY_VERIFY_APP_PACKAGING_AFTER_HOST:-true}"; then
+    if app_packaging_require_posthost_converged; then
+      log_info ENGINE 'HOST application packaging is fully converged: planned=0 drift=0 duplicates=0.'
+    else
+      rc=$?
+      printf 'Execution stopped after HOST: application packaging convergence failed (rc=%d).\n' "$rc" >&2
+      exit "$rc"
+    fi
+  fi
 done
 
 report="$(orchestrator_report)"
