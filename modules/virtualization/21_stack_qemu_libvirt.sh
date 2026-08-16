@@ -27,7 +27,6 @@ QEMU / LIBVIRT STACK PLAN:
 - every mutation is executed only through run_mutating
 EOF
 }
-}
 
 kvm_stack_apply() {
   local operator
