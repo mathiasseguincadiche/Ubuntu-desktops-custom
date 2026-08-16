@@ -43,10 +43,10 @@ jobs:
           packages=(
             mesa-vulkan-drivers mesa-utils vulkan-tools intel-media-va-driver vainfo intel-gpu-tools
             ca-certificates curl gnupg jq flatpak software-properties-common
-            filezilla pdfarranger remmina remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-secret
+            filezilla pdfarranger xournalpp remmina remmina-plugin-rdp remmina-plugin-vnc remmina-plugin-secret
             libreoffice libreoffice-gnome nautilus-admin nautilus-image-converter
-            gnome-shell-extension-manager ghostwriter
-            steam-installer steam-devices gamemode gamescope mangohud mangoapp
+            ghostwriter
+            gamemode gamescope mangohud mangoapp
             nvme-cli smartmontools lm-sensors lshw usbutils pciutils ethtool powertop v4l-utils
             pipewire-bin wireplumber
             qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients
@@ -64,31 +64,90 @@ jobs:
             fi
           done
           exit "$failed"
-      - name: Validate preferred OBS and ONLYOFFICE vendor APT sources
+      - name: Validate preferred vendor APT sources and provenance
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          sudo add-apt-repository -y ppa:obsproject/obs-studio
+          sudo install -d -m 0755 /etc/apt/keyrings
+
+          curl -fsSLo "$RUNNER_TEMP/mozilla.gpg" https://packages.mozilla.org/apt/repo-signing-key.gpg
+          mozilla_fpr="$(gpg --batch --show-keys --with-colons "$RUNNER_TEMP/mozilla.gpg" | awk -F: '$1=="fpr" {print $10; exit}')"
+          [[ "$mozilla_fpr" == '35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3' ]]
+          sudo install -m 0644 "$RUNNER_TEMP/mozilla.gpg" /etc/apt/keyrings/packages.mozilla.org.asc
+          sudo tee /etc/apt/sources.list.d/mozilla.sources >/dev/null <<'EOF'
+          Types: deb
+          URIs: https://packages.mozilla.org/apt
+          Suites: mozilla
+          Components: main
+          Signed-By: /etc/apt/keyrings/packages.mozilla.org.asc
+
+          Types: deb
+          URIs: https://packages.mozilla.org/apt
+          Suites: thunderbird-deb
+          Components: main
+          Signed-By: /etc/apt/keyrings/packages.mozilla.org.asc
+          EOF
+          sudo tee /etc/apt/preferences.d/mozilla >/dev/null <<'EOF'
+          Package: *
+          Pin: origin packages.mozilla.org
+          Pin-Priority: 1000
+          EOF
 
           curl -fsSLo "$RUNNER_TEMP/onlyoffice.asc" https://download.onlyoffice.com/GPG-KEY-ONLYOFFICE
           gpg --batch --yes --dearmor --output "$RUNNER_TEMP/onlyoffice.gpg" "$RUNNER_TEMP/onlyoffice.asc"
           sudo install -m 0644 "$RUNNER_TEMP/onlyoffice.gpg" /usr/share/keyrings/onlyoffice.gpg
           echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/onlyoffice.gpg] https://download.onlyoffice.com/repo/debian squeeze main' \
             | sudo tee /etc/apt/sources.list.d/onlyoffice.list >/dev/null
+
+          curl -fsSLo "$RUNNER_TEMP/steam.gpg" https://repo.steampowered.com/steam/archive/stable/steam.gpg
+          sudo install -m 0644 "$RUNNER_TEMP/steam.gpg" /usr/share/keyrings/steam.gpg
+          echo 'deb [arch=amd64,i386 signed-by=/usr/share/keyrings/steam.gpg] https://repo.steampowered.com/steam/ stable steam' \
+            | sudo tee /etc/apt/sources.list.d/steam-stable.list >/dev/null
+          sudo dpkg --add-architecture i386
+
           sudo apt-get update
 
+          declare -A expected_origin=(
+            [firefox]='packages.mozilla.org'
+            [thunderbird]='packages.mozilla.org'
+            [onlyoffice-desktopeditors]='download.onlyoffice.com'
+            [steam-launcher]='repo.steampowered.com'
+          )
           failed=0
-          for package in obs-studio onlyoffice-desktopeditors; do
-            candidate="$(apt-cache policy "$package" 2>/dev/null | awk '/Candidate:/ {print $2; exit}' || true)"
+          for package in "${!expected_origin[@]}"; do
+            policy="$(apt-cache policy "$package" 2>/dev/null || true)"
+            candidate="$(awk '/Candidate:/ {print $2; exit}' <<<"$policy")"
             if [[ -z "$candidate" || "$candidate" == '(none)' ]]; then
               echo "MISSING VENDOR CANDIDATE: $package" >&2
               failed=1
-            else
-              echo "PASS VENDOR CANDIDATE: $package -> $candidate"
+              continue
             fi
+            if ! grep -Fq "${expected_origin[$package]}" <<<"$policy"; then
+              echo "WRONG VENDOR ORIGIN: $package expected ${expected_origin[$package]}" >&2
+              failed=1
+              continue
+            fi
+            echo "PASS VENDOR CANDIDATE: $package -> $candidate (${expected_origin[$package]})"
           done
-          exit "$failed"
+          (( failed == 0 )) || exit "$failed"
+
+          for package in firefox thunderbird onlyoffice-desktopeditors steam-launcher; do
+            sudo apt-get --simulate -y install "$package" >/dev/null
+            echo "PASS VENDOR INSTALL SIMULATION: $package"
+          done
+      - name: Validate preferred Flathub applications
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          for app_id in \
+            com.bitwarden.desktop \
+            com.obsproject.Studio \
+            com.mattjakeman.ExtensionManager; do
+            sudo flatpak remote-info --system flathub "$app_id" >/dev/null
+            echo "PASS FLATHUB: $app_id"
+          done
       - name: Validate current official Ubuntu OS catalog
         shell: bash
         run: |
