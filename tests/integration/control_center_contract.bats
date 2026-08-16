@@ -2,33 +2,35 @@
 
 setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 
-@test "diagnostic delegates to global pretest audit" {
+@test "diagnostic delegates to the global read-only diagnostic" {
   grep -F 'engine_bootstrap' "$REPO_ROOT/diagnostic.sh"
-  grep -F 'pretest_run' "$REPO_ROOT/diagnostic.sh"
+  grep -F 'diagnostic_run' "$REPO_ROOT/diagnostic.sh"
 }
 
-@test "pretest audit validates catalog and module contracts" {
+@test "diagnostic audit validates catalog and module contracts" {
   grep -F 'module_catalog_load "$REPO_ROOT/manifests/module-plan.conf"' "$REPO_ROOT/lib/pretest_audit.sh"
   grep -F 'module_catalog_validate' "$REPO_ROOT/lib/pretest_audit.sh"
   grep -F 'module_adapter_register "$id"' "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
-@test "pretest audit reports OK WARN KO and GO NO-GO" {
+@test "diagnostic audit reports OK WARN KO and GO NO-GO" {
   grep -F 'SUMMARY: OK=%d | WARN=%d | KO=%d' "$REPO_ROOT/lib/pretest_audit.sh"
-  grep -F "verdict='GO PRE-TEST'" "$REPO_ROOT/lib/pretest_audit.sh"
-  grep -F "verdict='NO-GO PRE-TEST'" "$REPO_ROOT/lib/pretest_audit.sh"
+  grep -F "verdict='GO DIAGNOSTIC'" "$REPO_ROOT/lib/pretest_audit.sh"
+  grep -F "verdict='NO-GO DIAGNOSTIC'" "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
-@test "final pretest validates critical safety invariants" {
+@test "global diagnostic validates critical safety invariants and physical HOST" {
   grep -F 'pretest_check_kvm_network_contract' "$REPO_ROOT/lib/pretest_audit.sh"
   grep -F 'pretest_check_vm_host_separation' "$REPO_ROOT/lib/pretest_audit.sh"
   grep -F 'pretest_check_download_hygiene' "$REPO_ROOT/lib/pretest_audit.sh"
   grep -F 'pretest_check_mutation_boundaries' "$REPO_ROOT/lib/pretest_audit.sh"
   grep -F 'pretest_check_backup_safety' "$REPO_ROOT/lib/pretest_audit.sh"
+  grep -F 'pretest_check_physical_host' "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
-@test "diagnostic still reports real machine apply as blocked" {
-  grep -F 'REAL MACHINE APPLY: BLOCKED' "$REPO_ROOT/lib/pretest_audit.sh"
+@test "diagnostic keeps real machine apply gate closed by default" {
+  grep -F 'REAL MACHINE APPLY GATE: CLOSED BY DEFAULT (EXPECTED)' "$REPO_ROOT/lib/pretest_audit.sh"
+  grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
 }
 
 @test "missing runtime credentials are warnings not fake readiness inputs" {
@@ -48,7 +50,7 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'verdict=FULL_DRY_RUN_PASS' "$REPO_ROOT/lib/apply_gate.sh"
 }
 
-@test "rc1 enables guarded apply path while static runtime approval stays closed" {
+@test "guarded apply path is enabled while static runtime approval stays closed" {
   grep -F 'REAL_APPLY_FEATURE_ENABLED=true' "$REPO_ROOT/config/apply-gate.conf"
   grep -F 'REAL_MACHINE_APPROVED=false' "$REPO_ROOT/config/virtualization.conf"
   grep -F 'REAL APPLY BLOCKED: an interactive TTY is mandatory.' "$REPO_ROOT/install.sh"

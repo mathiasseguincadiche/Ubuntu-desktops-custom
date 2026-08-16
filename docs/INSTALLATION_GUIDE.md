@@ -10,10 +10,20 @@ Ce guide décrit la procédure supportée par l'état courant de `main`. La vers
 
 - Ubuntu Desktop 26.04 LTS installé sur le HOST.
 - Connexion Internet fonctionnelle.
-- Virtualisation AMD-V/SVM activée dans l'UEFI.
+- `git` installé pour cloner et identifier exactement le commit exécuté.
+- Virtualisation AMD-V/SVM activée dans l'UEFI et `/dev/kvm` disponible.
+- Filesystem système `/` en EXT4.
+- Volume DATA monté sur `/data` en EXT4 conformément à `config/workstation.conf`.
 - Dépôt cloné localement.
 - Accès `sudo` pour l'opérateur.
 - Cible de sauvegarde externe disponible avant l'APPLY réel.
+
+Sur une installation Ubuntu fraîche, Git peut être installé avec :
+
+```bash
+sudo apt update
+sudo apt install -y git
+```
 
 Lire également `EXECUTION_CONTRACT.md` avant la première exécution réelle.
 
@@ -42,7 +52,16 @@ Le point d'entrée recommandé est :
 ./diagnostic.sh
 ```
 
-Ne pas continuer en présence d'un KO. Les avertissements doivent être compris avant l'APPLY.
+Le diagnostic est entièrement en lecture seule. Il combine l'audit des contrats du dépôt avec le preflight du HOST physique : Ubuntu 26.04, virtualisation AMD-V/SVM, EXT4 système/DATA, disponibilité de `/dev/kvm` et inventaire matériel/réseau. Les sondes d'état `virsh`, `systemctl`, `nft` ou équivalentes sont autorisées lorsqu'elles sont strictement non mutantes ; les commandes qui modifient le système doivent rester médiées par les runners sécurisés du projet.
+
+Verdict attendu avant de passer au dry-run :
+
+```text
+VERDICT: GO DIAGNOSTIC
+NEXT STEP: FULL DRY-RUN
+```
+
+Ne pas continuer en présence d'un KO. Les avertissements doivent être compris avant l'APPLY. Le rapport global et l'inventaire HOST sont conservés dans `reports/`.
 
 ## 4. Dry-run intégral
 
