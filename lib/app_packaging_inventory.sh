@@ -71,8 +71,8 @@ app_packaging_apt_origin_matches() {
         current=(fields[1] == version)
         next
       }
-      split(line, fields, /[[:space:]]+/)
-      if (length(fields) == 2 && fields[2] ~ /^[0-9]+$/) {
+      field_count=split(line, fields, /[[:space:]]+/)
+      if (field_count == 2 && fields[2] ~ /^[0-9]+$/) {
         current=(fields[1] == version)
         next
       }
