@@ -73,13 +73,16 @@ apply_gate_verify_backup_proof() {
 }
 
 apply_gate_verify_app_packaging_preflight() {
+  local rc
   is_true "${REAL_APPLY_REQUIRE_CLEAN_APP_PACKAGING:-true}" || return 0
-  if ! app_packaging_require_preapply_clean; then
-    local rc=$?
+  if app_packaging_require_preapply_clean; then
+    log_info ENGINE 'Application packaging gate clean: zero DRIFT and zero DUPLICATE before mutation.'
+    return 0
+  else
+    rc=$?
     log_error ENGINE 'REAL APPLY requires zero application packaging DRIFT and zero DUPLICATE before any mutation.'
     return "$rc"
   fi
-  log_info ENGINE 'Application packaging gate clean: zero DRIFT and zero DUPLICATE before mutation.'
 }
 
 apply_gate_require_tty() {
