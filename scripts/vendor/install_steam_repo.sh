@@ -6,8 +6,23 @@ for cmd in curl apt-get dpkg dpkg-query; do
   command -v "$cmd" >/dev/null 2>&1 || { printf 'ERROR: %s is required.\n' "$cmd" >&2; exit 1; }
 done
 
+conflicts=()
 if dpkg-query -W -f='${Status}\n' steam-installer 2>/dev/null | grep -Fxq 'install ok installed'; then
-  printf '%s\n' 'ERROR: Ubuntu steam-installer is already installed. Review and remove that packaging source explicitly before switching to Valve steam-launcher.' >&2
+  conflicts+=("steam-installer:apt-ubuntu")
+fi
+if command -v snap >/dev/null 2>&1 && snap list steam >/dev/null 2>&1; then
+  conflicts+=("steam:snap")
+fi
+if command -v flatpak >/dev/null 2>&1; then
+  for scope in system user; do
+    if flatpak info --"$scope" com.valvesoftware.Steam >/dev/null 2>&1; then
+      conflicts+=("com.valvesoftware.Steam:flatpak-$scope")
+    fi
+  done
+fi
+if ((${#conflicts[@]} > 0)); then
+  printf 'ERROR: packaging migration required before Valve APT install: %s\n' "${conflicts[*]}" >&2
+  printf '%s\n' 'Review the read-only packaging inventory and remove the conflicting packaging explicitly before APPLY.' >&2
   exit 1
 fi
 
