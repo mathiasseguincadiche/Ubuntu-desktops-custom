@@ -26,6 +26,7 @@ if [[ "$MODE" == '--apply' ]]; then
     exit "$EXIT_SECURITY_BLOCK"
   fi
   if ! apply_gate_require_tty; then
+    log_info ENGINE 'REAL APPLY BLOCKED: an interactive TTY is mandatory.'
     ui_blocked 'INSTALLATION RÉELLE BLOQUÉE' \
       'Un terminal interactif est obligatoire.' \
       'Aucune modification n’a été effectuée.' \
@@ -59,6 +60,7 @@ if [[ "$MODE" == '--dry-run' ]]; then
     exit 0
   else
     rc=$?
+    printf 'VERDICT: FULL DRY-RUN FAIL (rc=%d)\n' "$rc" >> "$MAIN_LOG"
     report="$(orchestrator_report)"
     ui_summary "FULL DRY-RUN FAIL (rc=$rc)" 'Corriger l’étape en échec avant toute suite' "$report" "$LOG_DIR"
     exit "$rc"
