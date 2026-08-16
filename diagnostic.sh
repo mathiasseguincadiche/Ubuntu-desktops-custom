@@ -66,8 +66,12 @@ fi
 
 report="$REPORT_ROOT/$RUN_ID-diagnostic-audit.txt"
 if (( diagnostic_rc == 0 && PRETEST_KO == 0 )); then
+  printf '\nNEXT STEP: FULL DRY-RUN\n'
+  printf 'VERDICT: GO DIAGNOSTIC\n'
   ui_summary 'GO DIAGNOSTIC' 'FULL DRY-RUN' "$report" "$LOG_DIR"
 else
+  printf '\nNEXT STEP: CORRECT KO BEFORE DRY-RUN\n'
+  printf 'VERDICT: NO-GO DIAGNOSTIC\n'
   ui_summary 'NO-GO DIAGNOSTIC' 'CORRECT KO BEFORE DRY-RUN' "$report" "$LOG_DIR"
 fi
 
