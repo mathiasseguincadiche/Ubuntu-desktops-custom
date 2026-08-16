@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-setup() { REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"; }
+setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
 
 @test "diagnostic delegates to the global read-only diagnostic" {
   grep -F 'engine_bootstrap' "$REPO_ROOT/diagnostic.sh"
