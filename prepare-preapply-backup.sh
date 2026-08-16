@@ -247,7 +247,7 @@ backup_require_free_space() {
   local mountpoint="$1" min_gib available min_bytes
   min_gib="${BACKUP_PREAPPLY_MIN_FREE_GIB:-20}"
   [[ "$min_gib" =~ ^[0-9]+$ ]] || backup_fail 'BACKUP_PREAPPLY_MIN_FREE_GIB must be an integer' "$EXIT_INVALID_ARGUMENT"
-  available="$(df -PB1 --output=avail "$mountpoint" | awk 'NR==2 {print $1}')"
+  available="$(df -B1 --output=avail "$mountpoint" | awk 'NR==2 {print $1}')"
   [[ "$available" =~ ^[0-9]+$ ]] || backup_fail 'cannot determine free space on backup target'
   min_bytes=$((min_gib * 1024 * 1024 * 1024))
   (( available >= min_bytes )) || backup_fail "backup target has less than ${min_gib} GiB free"
