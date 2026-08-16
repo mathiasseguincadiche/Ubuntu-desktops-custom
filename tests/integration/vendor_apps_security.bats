@@ -30,12 +30,16 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'Automatic profile merging is intentionally refused.' "$script"
   grep -F 'tar -C "$desktop_home/snap/firefox/common/.mozilla" -czf "$archive" firefox' "$script"
   grep -F 'sha256sum -c "$checksum"' "$script"
+  grep -F "backup_verified=true" "$script"
+  grep -F "tar -tzf \"\$archive\" | stream_contains_exact 'firefox/profiles.ini'" "$script"
   grep -F 'install_mozilla_repo.sh" --configure-only' "$script"
+  grep -F "apt-cache policy firefox | stream_contains_fixed 'packages.mozilla.org'" "$script"
   grep -F 'apt-get --simulate --allow-downgrades install firefox' "$script"
   grep -F 'snap remove firefox' "$script"
   grep -F 'tar -C "$desktop_home/.mozilla" -xzf "$archive"' "$script"
-  grep -F 'packages.mozilla.org' "$script"
   grep -F 'Verified backup retained at:' "$script"
+  run grep -E '(tar -tzf|apt-cache policy firefox|dpkg-query).*\|[[:space:]]*grep[[:space:]].*-q' "$script"
+  [ "$status" -ne 0 ]
   run grep -E 'rm -rf.*(firefox|\.mozilla)' "$script"
   [ "$status" -ne 0 ]
 }
