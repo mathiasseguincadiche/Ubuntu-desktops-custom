@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=config/vm-profiles.conf
+source "$REPO_ROOT/config/vm-profiles.conf"
+URI="${LIBVIRT_URI:-qemu:///system}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  vm-profile list
+  vm-profile show ubuntu-desktop|windows-11
+  vm-profile command ubuntu-desktop --iso /path/ubuntu.iso [--name NAME]
+  vm-profile command windows-11 --iso /path/windows11.iso --virtio-iso /path/virtio-win.iso [--name NAME]
+
+'command' only prints the reviewed virt-install command. It never creates a VM.
+EOF
+}
+
+profile_show() {
+  case "$1" in
+    ubuntu-desktop)
+      printf '%s\n' "name=$UBUNTU_DESKTOP_NAME" "os=$UBUNTU_DESKTOP_OS" "vcpu=$UBUNTU_DESKTOP_VCPU" "ram_mb=$UBUNTU_DESKTOP_RAM_MB" "disk_gb=$UBUNTU_DESKTOP_DISK_GB" \
+        "graphics=$UBUNTU_DESKTOP_GRAPHICS" "video=$UBUNTU_DESKTOP_VIDEO" "accel3d=$UBUNTU_DESKTOP_VIDEO_ACCEL3D" "render_node=$UBUNTU_DESKTOP_RENDER_NODE" "network=$UBUNTU_DESKTOP_NETWORK"
+      ;;
+    windows-11)
+      printf '%s\n' "name=$WINDOWS11_NAME" "os=$WINDOWS11_OS" "vcpu=$WINDOWS11_VCPU" "ram_mb=$WINDOWS11_RAM_MB" "disk_gb=$WINDOWS11_DISK_GB" \
+        "firmware=$WINDOWS11_FIRMWARE" "tpm=$WINDOWS11_TPM_VERSION" "disk_bus=$WINDOWS11_DISK_BUS" "network=$WINDOWS11_NETWORK"
+      ;;
+    *) return 2 ;;
+  esac
+}
+
+print_command() {
+  local profile="$1"; shift
+  local iso='' virtio_iso='' name=''
+  while (($#)); do
+    case "$1" in
+      --iso) iso="${2:-}"; shift 2 ;;
+      --virtio-iso) virtio_iso="${2:-}"; shift 2 ;;
+      --name) name="${2:-}"; shift 2 ;;
+      *) printf 'Unknown argument: %s\n' "$1" >&2; return 2 ;;
+    esac
+  done
+  [[ -n "$iso" ]] || { printf '%s\n' '--iso is required' >&2; return 2; }
+
+  case "$profile" in
+    ubuntu-desktop)
+      name="${name:-$UBUNTU_DESKTOP_NAME}"
+      printf '%q ' virt-install --connect "$URI" --name "$name" --memory "$UBUNTU_DESKTOP_RAM_MB" --vcpus "$UBUNTU_DESKTOP_VCPU" \
+        --cpu host-passthrough --machine q35 --boot uefi \
+        --disk "pool=$VM_PROFILE_DEFAULT_POOL,size=$UBUNTU_DESKTOP_DISK_GB,format=qcow2,bus=virtio" \
+        --network "network=$UBUNTU_DESKTOP_NETWORK,model=virtio" \
+        --graphics "spice,gl.enable=yes,listen=none,rendernode=$UBUNTU_DESKTOP_RENDER_NODE" \
+        --video virtio,accel3d=yes --channel spicevmc \
+        --sound ich9 --redirdev usb,type=spicevmc --redirdev usb,type=spicevmc \
+        --cdrom "$iso" --noautoconsole
+      printf '\n'
+      ;;
+    windows-11)
+      [[ -n "$virtio_iso" ]] || { printf '%s\n' '--virtio-iso is required for windows-11' >&2; return 2; }
+      name="${name:-$WINDOWS11_NAME}"
+      printf '%q ' virt-install --connect "$URI" --name "$name" --memory "$WINDOWS11_RAM_MB" --vcpus "$WINDOWS11_VCPU" \
+        --cpu host-passthrough --machine q35 --boot uefi \
+        --tpm backend.type=emulator,backend.version=2.0,model=tpm-crb \
+        --disk "pool=$VM_PROFILE_DEFAULT_POOL,size=$WINDOWS11_DISK_GB,format=qcow2,bus=virtio" \
+        --disk "path=$virtio_iso,device=cdrom" --network "network=$WINDOWS11_NETWORK,model=virtio" \
+        --graphics spice,listen=none --video virtio --channel spicevmc \
+        --sound ich9 --redirdev usb,type=spicevmc --redirdev usb,type=spicevmc \
+        --cdrom "$iso" --noautoconsole
+      printf '\n'
+      ;;
+    *) return 2 ;;
+  esac
+}
+
+case "${1:-}" in
+  list) printf '%s\n' ubuntu-desktop windows-11 ;;
+  show) [[ $# -eq 2 ]] || { usage; exit 2; }; profile_show "$2" ;;
+  command) [[ $# -ge 3 ]] || { usage; exit 2; }; profile="$2"; shift 2; print_command "$profile" "$@" ;;
+  *) usage; exit 2 ;;
+esac
