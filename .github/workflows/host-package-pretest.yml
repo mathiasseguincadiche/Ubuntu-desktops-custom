@@ -1,3 +1,4 @@
+# Release preflight trigger: no functional change.
 name: host-package-pretest
 
 on:
