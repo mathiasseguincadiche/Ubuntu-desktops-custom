@@ -73,9 +73,9 @@ Le HOST contient les applications desktop définies par le projet, notamment VS 
 La source d'installation n'est pas choisie avec une règle unique « Snap partout ». La référence exécutable est `manifests/host/app-packaging-policy.conf` et suit ces principes :
 
 - **APT Ubuntu** pour les composants système, codecs, outils d'intégration GNOME et applications dont le paquet Ubuntu 26.04 fournit une base adaptée et reproductible ;
-- **APT éditeur signé** pour VS Code et Brave, afin d'utiliser les dépôts natifs officiels de Microsoft et Brave ;
+- **APT éditeur signé** pour VS Code, Brave, OBS Studio et ONLYOFFICE Desktop Editors lorsque l'éditeur fournit/recommande un dépôt Ubuntu/Debian compatible ;
 - **Snap préinstallé par Ubuntu** conservé pour les applications de base que le projet ne cherche pas à migrer, notamment Firefox et Thunderbird ;
-- **Flatpak** pour Bitwarden et ONLYOFFICE Desktop Editors, comme applications desktop éditeur-supportées isolées du système ;
+- **Flatpak** pour Bitwarden Desktop, dont le canal Flatpak fournit l'isolation de processus recherchée par la policy de sécurité du poste ;
 - **DEB éditeur vérifié** pour draw.io, téléchargé depuis la release officielle avec contrôle SHA-256.
 
 Une application déjà installée dans la source attendue est laissée en place/convergée idempotemment. Une application présente via une autre source est signalée `DRIFT`. Plusieurs sources pour la même application sont signalées `DUPLICATE`. Ces situations sont à examiner avant l'APPLY mais ne provoquent aucune suppression automatique.
