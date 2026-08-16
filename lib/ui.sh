@@ -46,7 +46,7 @@ ui_status_text() {
     INFO) printf '%s' 'INFO' ;;
     WARN) printf '%s' 'ATTENTION' ;;
     BLOCKED) printf '%s' 'BLOQUÉ' ;;
-    FAIL|ERROR) printf '%s' 'ÉCHEC' ;;
+    KO|FAIL|ERROR) printf '%s' 'ÉCHEC' ;;
     SKIP) printf '%s' 'IGNORÉ' ;;
     *) printf '%s' "$status" ;;
   esac
@@ -58,7 +58,7 @@ ui_status_color() {
     OK|READY|PASS) ui_color '1;32' ;;
     RUNNING|INFO) ui_color '1;36' ;;
     WARN) ui_color '1;33' ;;
-    BLOCKED|FAIL|ERROR) ui_color '1;31' ;;
+    BLOCKED|KO|FAIL|ERROR) ui_color '1;31' ;;
     SKIP) ui_color '2;37' ;;
     *) ui_color '0' ;;
   esac
@@ -238,19 +238,23 @@ ui_info() {
 }
 
 ui_warn() {
-  printf '  '
-  ui_status_color WARN
-  printf 'ATTENTION'
-  ui_reset_color
-  printf '  %s\n' "$*" >&2
+  {
+    printf '  '
+    ui_status_color WARN
+    printf 'ATTENTION'
+    ui_reset_color
+    printf '  %s\n' "$*"
+  } >&2
 }
 
 ui_error() {
-  printf '  '
-  ui_status_color ERROR
-  printf 'ÉCHEC'
-  ui_reset_color
-  printf '  %s\n' "$*" >&2
+  {
+    printf '  '
+    ui_status_color ERROR
+    printf 'ÉCHEC'
+    ui_reset_color
+    printf '  %s\n' "$*"
+  } >&2
 }
 
 ui_check() {
@@ -260,15 +264,17 @@ ui_check() {
 
 ui_blocked() {
   local title="$1" problem="$2" consequence="$3" action="$4" log_path="${5:-}"
-  printf '\n'
-  printf '┌─ %s ─────────────────────────────────────────────────────\n' "$title"
-  printf '│ Problème     : %s\n' "$problem"
-  printf '│ Conséquence  : %s\n' "$consequence"
-  printf '│ Action       : %s\n' "$action"
-  if [[ -n "$log_path" ]]; then
-    printf '│ Log technique: %s\n' "$log_path"
-  fi
-  printf '%s\n' '└─────────────────────────────────────────────────────────────────────'
+  {
+    printf '\n'
+    printf '┌─ %s ─────────────────────────────────────────────────────\n' "$title"
+    printf '│ Problème     : %s\n' "$problem"
+    printf '│ Conséquence  : %s\n' "$consequence"
+    printf '│ Action       : %s\n' "$action"
+    if [[ -n "$log_path" ]]; then
+      printf '│ Log technique: %s\n' "$log_path"
+    fi
+    printf '%s\n' '└─────────────────────────────────────────────────────────────────────'
+  } >&2
 }
 
 ui_summary() {
