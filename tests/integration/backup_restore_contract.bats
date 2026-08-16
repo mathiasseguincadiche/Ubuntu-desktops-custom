@@ -44,6 +44,13 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   [ "$status" -ne 0 ]
 }
 
+@test "pre-apply free-space probe uses compatible GNU df options" {
+  script="$REPO_ROOT/prepare-preapply-backup.sh"
+  grep -F 'df -B1 --output=avail "$mountpoint"' "$script"
+  run grep -F 'df -PB1 --output=avail' "$script"
+  [ "$status" -ne 0 ]
+}
+
 @test "interactive menu places verified backup before real apply" {
   menu="$REPO_ROOT/menu.sh"
   grep -F '3) Préparer et vérifier le backup pré-APPLY (Restic)' "$menu"
