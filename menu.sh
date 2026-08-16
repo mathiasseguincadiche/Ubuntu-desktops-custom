@@ -34,6 +34,7 @@ while true; do
 6) Lister les VM KVM
 7) Lister les profils de VM optionnelles
 8) Ouvrir le guide de demarrage (chemin)
+9) Remediation packaging applicatif pre-APPLY
 0) Quitter
 EOF
   read -r -p 'Choix: ' choice
@@ -54,6 +55,7 @@ EOF
     6) virsh -c qemu:///system list --all ;;
     7) show_kvm_profiles ;;
     8) printf '%s\n' "$REPO_ROOT/docs/INSTALLATION_GUIDE.md" ;;
+    9) bash "$REPO_ROOT/repair-packaging.sh" ;;
     0) exit 0 ;;
     *) printf '%s\n' 'Choix invalide.' ;;
   esac
