@@ -36,11 +36,23 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'BACKUP_PREAPPLY_REPOSITORY_SUBDIR' "$script"
   grep -F 'backup_local_source_is_external()' "$script"
   grep -F 'restic --repo "$repository" --password-file "$password_file" init' "$script"
-  grep -F 'restic --repo "$repository" --password-file "$password_file" backup' "$script"
+  grep -F 'restic --repo "$repository" --password-file "$password_file" --quiet backup --json' "$script"
   grep -F 'restic --repo "$repository" --password-file "$password_file" restore "$snapshot_id"' "$script"
   grep -F '"$REPO_ROOT/verify-preapply-backup.sh"' "$script"
   grep -F 'apply_gate_verify_backup_proof' "$script"
   run grep -E '(^|[[:space:]])(mkfs|parted|wipefs|fdisk|sgdisk)([[:space:]]|$)' "$script"
+  [ "$status" -ne 0 ]
+}
+
+@test "pre-apply backup captures the snapshot ID from the backup JSON summary" {
+  script="$REPO_ROOT/prepare-preapply-backup.sh"
+  grep -F 'backup_snapshot_id_from_json()' "$script"
+  grep -F 'backup_json="$LOG_DIR/restic-backup.jsonl"' "$script"
+  grep -F 'record.get("message_type") == "summary" and record.get("snapshot_id")' "$script"
+  grep -F 'snapshot_ids.append(record["snapshot_id"])' "$script"
+  grep -F 'snapshot_id="$(backup_snapshot_id_from_json "$backup_json"' "$script"
+  grep -F 'cat snapshot "$snapshot_id"' "$script"
+  run grep -F -- '--json snapshots --tag "$run_tag"' "$script"
   [ "$status" -ne 0 ]
 }
 
