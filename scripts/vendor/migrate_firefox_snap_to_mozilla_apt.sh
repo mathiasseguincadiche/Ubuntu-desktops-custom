@@ -56,7 +56,8 @@ if command -v flatpak >/dev/null 2>&1; then
   fi
 fi
 
-if pgrep -u "$(id -u "$desktop_user")" -x firefox >/dev/null 2>&1; then
+uid="$(id -u "$desktop_user")"
+if pgrep -u "$uid" -x firefox >/dev/null 2>&1 || pgrep -u "$uid" -x firefox-bin >/dev/null 2>&1; then
   printf '%s\n' 'ERROR: Firefox is running. Quit Firefox completely before migration.' >&2
   exit 1
 fi
@@ -99,7 +100,9 @@ apt-cache policy firefox | grep -Fq 'packages.mozilla.org'
 
 stage='profile-restore'
 install -d -m 0700 -o "$desktop_user" -g "$desktop_group" "$desktop_home/.mozilla"
-rm -rf -- "$native_profile_root"
+if [[ -d "$native_profile_root" ]]; then
+  rmdir -- "$native_profile_root"
+fi
 sudo -u "$desktop_user" tar -C "$desktop_home/.mozilla" -xzf "$archive"
 [[ -r "$native_profile_root/profiles.ini" ]]
 find "$native_profile_root" -mindepth 2 -name places.sqlite -print -quit | grep -q .
