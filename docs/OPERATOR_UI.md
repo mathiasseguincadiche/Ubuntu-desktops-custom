@@ -1,4 +1,4 @@
-# Interface opérateur V2
+# Interface opérateur V3
 
 ## Objectif
 
@@ -6,7 +6,7 @@ Le terminal sert à comprendre et piloter l'exécution. Les détails techniques 
 
 Le projet sépare donc deux niveaux d'information :
 
-- **terminal opérateur** : sections claires, étapes numérotées, statuts, explications courtes, verdict et prochaine action ;
+- **terminal opérateur** : sections claires, étapes numérotées, sous-actions métier, statuts, durées, preuves de validation, verdict et prochaine action ;
 - **logs techniques** : timestamps, phases PRECHECK/PLAN/APPLY/POSTCHECK, commandes exactes, sorties détaillées et traces de sous-processus.
 
 Aucun gate de sécurité n'est modifié par cette couche d'affichage.
@@ -36,25 +36,51 @@ Les statuts opérateur sont volontairement limités :
 
 Les couleurs sont activées uniquement sur un terminal compatible. La variable standard `NO_COLOR` désactive les couleurs.
 
-## Progression live pendant l'APPLY réel
+## Progression live V3 pendant l'APPLY réel
 
-Une étape de haut niveau peut contenir plusieurs mutations longues. Le mode opérateur affiche donc, uniquement pendant un APPLY réel validé, la sous-action mutante en cours avec un libellé humain.
+Une étape de haut niveau peut contenir plusieurs mutations longues. Le mode opérateur affiche donc, uniquement pendant un APPLY réel validé, la sous-action mutante en cours avec un libellé humain et la durée lorsque l'action se termine.
 
-Exemple pour `host.apps` :
+Exemple HOST :
 
 ```text
-  [06/41] Applications desktop ............................ EN COURS
-          ├─ Nettoyage des applications retirées .......... OK
-          ├─ Paquets Ubuntu — FileZilla, Remmina… ......... OK
-          ├─ Firefox — dépôt officiel Mozilla ............. OK
-          ├─ Proton Mail Desktop ........................... EN COURS
+  [04/41] Intel Arc B580 et pile graphique .............. EN COURS
+          ├─ Mesa/Vulkan + Intel VA-API + GPU tools ..... OK · 9s
+  [04/41] Intel Arc B580 et pile graphique .............. OK
+          Arc B580 PCI 8086:e20b | driver xe | Vulkan Intel Mesa | probe VA-API
+
+  [05/41] Multimédia et codecs .......................... EN COURS
+          ├─ FFmpeg + GStreamer + PipeWire/WirePlumber .. OK · 7s
+          ├─ VLC — canal officiel VideoLAN Snap ......... OK · 14s
+  [05/41] Multimédia et codecs .......................... OK
+          FFmpeg | GStreamer base/good/bad/ugly/libav | PipeWire/WirePlumber | VLC
+```
+
+Exemple VM_DEVOPS :
+
+```text
+  [28/41] Docker Engine ................................. EN COURS
+          ├─ Docker Engine + Buildx + Compose ........... OK · 18s
+  [28/41] Docker Engine ................................. OK
+          Docker Engine | Buildx | Compose plugin | service et droits utilisateur
 ```
 
 Les commandes exactes ne sont jamais recopiées dans cette vue. Elles restent dans `commands.log`, tandis que leurs sorties restent dans `modules.log` et les traces moteur dans `main.log`.
 
-Cette télémétrie live est centralisée dans `lib/live_progress.sh` et branchée sur `run_mutating` dans `lib/runner.sh`. Elle couvre les principales mutations HOST, KVM et VM_DEVOPS sans modifier leurs gates ni leur comportement fonctionnel.
+## Granularité couverte
 
-Le dry-run n'affiche pas ces sous-actions mutantes en direct : il conserve sa vue synthétique des 41 modules et journalise les commandes simulées dans les logs techniques.
+La télémétrie V3 est branchée au niveau central de `run_mutating` et couvre les mutations des domaines :
+
+- **HOST** : mises à jour Ubuntu, microcode/firmware, Intel Arc/Mesa/Vulkan/VA-API, multimédia, applications desktop, terminal, gaming et observabilité ;
+- **KVM** : QEMU/libvirt, droits, OVMF/swtpm, stockage, pools, réseau `devops-nat`, garde nftables et catalogue Canonical ;
+- **VM_DEVOPS** : identité/SSH, cloud-init, image Ubuntu, provisionnement, outils de base, Git, cloud CLIs, IaC, Docker, Kubernetes et DevSecOps.
+
+Les modules BACKUP du plan d'architecture restent non-mutants. Leur détail opérateur décrit le contrat et les contrôles attendus ; la vraie préparation Restic pré-APPLY conserve sa propre interface détaillée avec snapshot, restore-test, intégrité et preuve `BACKUP_VERIFIED`.
+
+## Preuve après chaque module
+
+`lib/operator_details.sh` fournit un détail humain non vide pour chacun des 41 modules. Après un `OK`, l'opérateur voit donc ce qui vient réellement d'être validé au lieu d'un verdict opaque.
+
+Cette couche ne lance aucune commande et ne prend aucune décision de sécurité. Elle ne fait qu'expliquer le résultat déjà produit par le module.
 
 ## Logs d'une exécution
 
@@ -90,7 +116,7 @@ Une erreur opérateur doit répondre immédiatement à quatre questions :
 3. quelle action effectuer ;
 4. où trouver le log technique.
 
-Une sous-action mutante en échec passe immédiatement de `EN COURS` à `ÉCHEC`, puis le module et l'orchestrateur conservent leur comportement fail-closed habituel.
+Une sous-action mutante en échec passe immédiatement de `EN COURS` à `ÉCHEC` avec sa durée, puis le module et l'orchestrateur conservent leur comportement fail-closed habituel.
 
 Une erreur ne doit jamais être masquée pour rendre l'interface plus esthétique.
 
@@ -99,7 +125,10 @@ Une erreur ne doit jamais être masquée pour rendre l'interface plus esthétiqu
 La CI vérifie notamment que :
 
 - `lib/ui.sh` reste la couche UI centrale ;
+- `lib/operator_details.sh` fournit un détail pour chacun des 41 modules ;
 - `lib/live_progress.sh` fournit uniquement la télémétrie opérateur des mutations réelles ;
+- les bundles HOST/KVM/VM_DEVOPS majeurs ont des libellés métier explicites ;
+- la durée est affichée à la fin d'une sous-action réelle ;
 - les commandes complètes restent journalisées ;
 - les phases des 41 modules sont redirigées vers le log technique en mode opérateur ;
 - le dry-run n'active pas la progression live des mutations ;
