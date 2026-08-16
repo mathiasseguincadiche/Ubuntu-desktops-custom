@@ -36,6 +36,38 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   [ "$status" -eq 0 ]
 }
 
+@test "optional desktop profiles remain outside automatic workstation provisioning" {
+  grep -F 'UBUNTU_DESKTOP_VCPU=6' "$REPO_ROOT/config/vm-profiles.conf"
+  grep -F 'UBUNTU_DESKTOP_RAM_MB=8192' "$REPO_ROOT/config/vm-profiles.conf"
+  grep -F 'WINDOWS11_VCPU=8' "$REPO_ROOT/config/vm-profiles.conf"
+  grep -F 'WINDOWS11_RAM_MB=16384' "$REPO_ROOT/config/vm-profiles.conf"
+  run grep -E 'ubuntu-desktop|windows-11' "$REPO_ROOT/manifests/module-plan.conf"
+  [ "$status" -ne 0 ]
+}
+
+@test "Ubuntu Desktop profile uses dynamic Intel render node and accelerated VirtIO GPU" {
+  grep -F 'UBUNTU_DESKTOP_RENDER_NODE=auto-intel' "$REPO_ROOT/config/vm-profiles.conf"
+  grep -F "vendor,,}" "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F "0x8086" "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F 'gl.rendernode=' "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F -- '--video virtio,accel3d=yes' "$REPO_ROOT/scripts/kvm/vm-profile"
+}
+
+@test "Windows 11 profile requires Secure Boot TPM 2.0 and VirtIO media" {
+  grep -F 'WINDOWS11_FIRMWARE=uefi-secureboot' "$REPO_ROOT/config/vm-profiles.conf"
+  grep -F 'firmware.feature0.name=secure-boot' "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F 'firmware.feature1.name=enrolled-keys' "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F 'backend.version=2.0,model=tpm-crb' "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F -- '--virtio-iso is required for windows-11' "$REPO_ROOT/scripts/kvm/vm-profile"
+}
+
+@test "on-demand VM creation is interactive and rollback scoped" {
+  grep -F 'Interactive TTY required for VM creation.' "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F 'CREATE_$VM_NAME' "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F 'rollback_created_vm' "$REPO_ROOT/scripts/kvm/vm-profile"
+  grep -F 'vol-delete --pool "$VM_PROFILE_DEFAULT_POOL" "$VM_NAME.qcow2"' "$REPO_ROOT/scripts/kvm/vm-profile"
+}
+
 @test "KVM validation advertises architecture readiness" {
   run grep -F 'KVM CONTRACT READY' "$REPO_ROOT/modules/virtualization/30_virtualization_validation.sh"
   [ "$status" -eq 0 ]
