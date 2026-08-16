@@ -1,18 +1,48 @@
 # Changelog
 
-## Unreleased
+## 1.0.0
 
-### Architecture
-- Squelette V1 HOST / KVM / VM_DEVOPS / BACKUP.
-- Réseau KVM `devops-nat` figé sur `192.168.50.0/24` avec autostart.
-- Passerelle/interface HOST `192.168.50.254` via `virbr50`.
-- DHCP `192.168.50.100-200` et réservations déterministes dans ce pool.
-- Contrat DNS Quad9 `9.9.9.9` + Cloudflare `1.1.1.1`.
-- Isolation explicite VM → LAN physique avec découverte dynamique des routes.
-- HOST ↔ VM, VM ↔ VM et VM → Internet autorisés.
-- Aucun port-forward entrant par défaut.
-- Blocage sur chevauchement réseau ou ambiguïté.
-- Préservation du firewall HOST et rollback limité aux objets du projet.
-- Validation future de la persistance après redémarrage.
-- Gate `REAL_MACHINE_APPROVED=false` maintenue.
-- Tests Bats et CI de non-régression du contrat réseau.
+### Workstation HOST
+- Ubuntu Desktop 26.04 LTS comme plateforme native.
+- Mise à jour système, firmware et microcode AMD.
+- Pile Intel Arc/Mesa/Vulkan/VA-API et diagnostics GPU.
+- Codecs et multimédia.
+- Socle applicatif desktop, VS Code/Remote SSH, terminal Ptyxis/Bash et outils de bureau.
+- Socle gaming Steam, GameMode, Gamescope, MangoHud/MangoApp et runtime Vulkan.
+- Observabilité matérielle NVMe/SMART, températures, PCI/USB, réseau, audio et webcam.
+
+### KVM / libvirt
+- Administration CLI-first via `qemu:///system`, `virsh`, `virt-install` et `qemu-img`.
+- `virt-manager` et `virt-viewer` conservés comme outils graphiques de secours/inspection.
+- QEMU/libvirt, UEFI/OVMF, TPM `swtpm`, VirtIO, SPICE/VirGL et `osinfo-db`.
+- Pool `devops-data` et réseau `devops-nat` persistants.
+- NAT custom `192.168.50.0/24`, passerelle HOST `192.168.50.254`, DHCP `.100-.200`, DNS Quad9/Cloudflare.
+- HOST ↔ VM, VM ↔ VM et VM → Internet autorisés ; accès au LAN physique et forwarding entrant bloqués.
+- Firewall nftables limité aux objets du projet et comportement fail-closed.
+- Catalogue Ubuntu 26.04 vérifié dynamiquement contre les `SHA256SUMS` officiels Canonical.
+
+### VM DevOps
+- `ubuntu-devops` : Ubuntu Server 26.04 LTS, 8 vCPU, 16 Gio RAM, 200 Gio QCOW2, cloud-init et SSH par clé.
+- Git, Terraform, Ansible/ansible-lint, Docker CE/Buildx/Compose, kubectl, Helm et kind.
+- AWS CLI, Azure CLI, Gitleaks, Trivy, Hadolint, ShellCheck et Checkov.
+- Image Canonical authentifiée, smoke tests runtime et persistance après reboot validés en laboratoire KVM réel.
+
+### VM graphiques optionnelles
+- Ubuntu Desktop 26.04 : 6 vCPU, 8 Gio, 100 Gio, VirtIO-GPU + 3D + VirGL/OpenGL + SPICE GL.
+- Sélection dynamique du render node Intel ; aucun chemin `/dev/dri/renderD128` figé.
+- Windows 11 : 8 vCPU, 16 Gio, 200 Gio, Q35, UEFI Secure Boot, clés enrôlées, TPM 2.0 et VirtIO.
+- Création à la demande avec prévisualisation, confirmation interactive et rollback ciblé.
+- GPU passthrough/VFIO explicitement interdit ; l'Intel Arc reste propriété du HOST.
+
+### Backup / Restore
+- Restic chiffré avec cible externe obligatoire avant APPLY réel.
+- Preuve de backup liée au commit courant et contrôlée en fraîcheur.
+- Sauvegarde HOST/KVM/VM, vérification d'intégrité, rétention, restauration granulaire et Disaster Recovery.
+- Copie brute à chaud d'un QCOW2 actif interdite.
+
+### Exécution et qualité
+- Menu interactif comme point d'entrée recommandé.
+- Diagnostic, dry-run intégral, états, logs, rapports, reprise et postchecks par module.
+- APPLY fail-closed avec TTY, preflight HOST, preuve dry-run du commit courant, backup vérifié et confirmations globales/par domaine.
+- Tests Bats unitaires/intégration/dry-run, ShellCheck, non-régression, résolution des paquets Ubuntu 26.04 et laboratoire VM réel.
+- Documentation d'installation, contrat d'exécution, runbooks HOST/KVM/VM/backup, troubleshooting et guide KVM débutant.
