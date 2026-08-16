@@ -9,6 +9,10 @@ declare -Ag ORCH_APPLY=()
 declare -Ag ORCH_POSTCHECK=()
 declare -ag ORCH_ORDER=()
 
+orchestrator_ui_enabled() {
+  declare -F ui_is_operator >/dev/null 2>&1 && ui_is_operator
+}
+
 orchestrator_reset() {
   ORCH_SCOPE=()
   ORCH_DEPS=()
@@ -43,17 +47,17 @@ orchestrator_call() {
 }
 
 orchestrator_call_phase() {
-  local id="$1" phase="$2" fn="$3"
+  local id="$1" phase="$2" fn="$3" rc=0
   [[ -z "$fn" ]] && return 0
   declare -F "$fn" >/dev/null || return "$EXIT_INVALID_ARGUMENT"
 
   log_module_boundary "$id" "$phase" BEGIN
-  if ui_is_operator; then
+  if orchestrator_ui_enabled; then
     if "$fn" >> "$MODULE_LOG" 2>&1; then
       log_module_boundary "$id" "$phase" END_OK
       return 0
     else
-      local rc=$?
+      rc=$?
       log_module_boundary "$id" "$phase" "END_FAIL rc=$rc"
       return "$rc"
     fi
@@ -63,7 +67,7 @@ orchestrator_call_phase() {
     log_module_boundary "$id" "$phase" END_OK
     return 0
   else
-    local rc=$?
+    rc=$?
     log_module_boundary "$id" "$phase" "END_FAIL rc=$rc"
     return "$rc"
   fi
@@ -106,7 +110,7 @@ orchestrator_module_position() {
 
 orchestrator_prepare_ui_step() {
   local id="$1" scope="$2" index
-  ui_is_operator || return 0
+  orchestrator_ui_enabled || return 0
   if [[ "${UI_SCOPE_CURRENT:-}" != "$scope" ]]; then
     ui_section "$scope"
   fi
@@ -116,7 +120,7 @@ orchestrator_prepare_ui_step() {
 
 orchestrator_fail_ui_step() {
   local phase="$1" rc="$2"
-  ui_is_operator || return 0
+  orchestrator_ui_enabled || return 0
   ui_step_fail "Phase $phase en échec (rc=$rc). Détail : $MODULE_LOG"
 }
 
@@ -129,14 +133,14 @@ orchestrator_run_module() {
 
   if orchestrator_should_resume_skip "$id"; then
     log_info ENGINE "resume skip module=$id state=$(state_get "$id")"
-    ui_is_operator && ui_step_skip
+    if orchestrator_ui_enabled; then ui_step_skip; fi
     ACTIVE_SCOPE="$previous_scope"
     return 0
   fi
 
   if ! orchestrator_dependencies_ready "$id"; then
     state_set "$id" "$STATE_BLOCKED" 'dependency not satisfied'
-    ui_is_operator && ui_step_fail 'Dépendance non satisfaite. Aucune mutation lancée.'
+    if orchestrator_ui_enabled; then ui_step_fail 'Dépendance non satisfaite. Aucune mutation lancée.'; fi
     ACTIVE_SCOPE="$previous_scope"
     return "$EXIT_DEPENDENCY_FAILED"
   fi
@@ -182,7 +186,7 @@ orchestrator_run_module() {
   fi
 
   state_set "$id" "$STATE_SUCCESS" 'all phases completed'
-  ui_is_operator && ui_step_ok
+  if orchestrator_ui_enabled; then ui_step_ok; fi
   ACTIVE_SCOPE="$previous_scope"
 }
 
