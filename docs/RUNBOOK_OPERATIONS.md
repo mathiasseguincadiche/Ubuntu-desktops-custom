@@ -2,6 +2,19 @@
 
 Ce document est le point d'entrée opérationnel pour administrer, diagnostiquer, maintenir, sauvegarder et restaurer la workstation Ubuntu 26.04 LTS et son environnement KVM/VM.
 
+## Sources de vérité opérationnelles
+
+Le runbook décrit les procédures à suivre ; il ne duplique pas l'historique des versions.
+
+- `config/` contient les paramètres runtime et les gates ;
+- `manifests/` contient les contrats déclaratifs ;
+- `modules/` et `scripts/` contiennent le comportement exécutable ;
+- `VERSION` identifie la version publiée ;
+- `CHANGELOG.md` conserve l'historique des évolutions ;
+- `state/`, `logs/` et `reports/` contiennent les preuves de la machine réellement contrôlée.
+
+Pour toute opération sensible, identifier d'abord le commit courant avec `git rev-parse HEAD` et conserver les preuves correspondant à cette même révision.
+
 ## 1. Règles d'or
 
 1. Ne jamais lancer `./install.sh --apply` avant un diagnostic et un dry-run propres sur le même commit.
@@ -29,6 +42,7 @@ Toujours commencer par :
 
 ```bash
 git pull --ff-only
+git rev-parse HEAD
 ./diagnostic.sh
 ./install.sh --dry-run
 ```
@@ -36,10 +50,11 @@ git pull --ff-only
 Si le diagnostic et le dry-run sont propres, vérifier le backup pré-APPLY puis seulement utiliser :
 
 ```bash
+./verify-preapply-backup.sh
 ./install.sh --apply
 ```
 
-L'APPLY demande des confirmations interactives globales et par domaine. En cas de doute, répondre non et arrêter.
+Le diagnostic, le dry-run, la preuve de backup et l'APPLY doivent correspondre au même commit. L'APPLY demande des confirmations interactives globales et par domaine. En cas de doute, arrêter l'exécution plutôt que contourner une gate.
 
 ## 4. KVM/libvirt — exploitation CLI
 
@@ -78,7 +93,7 @@ L'administration officielle reste CLI-first. `virt-manager` et `virt-viewer` son
 
 Le socle installe `osinfo-db` pour les métadonnées de systèmes invités utilisées par libvirt/virt-install. En complément, le projet maintient son catalogue canonique dans `manifests/virtualization/os-catalog.yml`.
 
-Pendant la convergence KVM réelle, `scripts/kvm/refresh_os_catalog.sh` interroge uniquement les fichiers `SHA256SUMS` officiels Canonical configurés dans ce manifeste. Il vérifie que les médias Ubuntu Desktop 26.04, Ubuntu Server 26.04 et l'image cloud Server 26.04 sont toujours publiés et résout leur SHA-256 courant sans télécharger les images complètes.
+Pendant la convergence KVM réelle, `scripts/kvm/refresh_os_catalog.sh` interroge uniquement les fichiers `SHA256SUMS` officiels Canonical configurés dans ce manifeste. Il vérifie que les médias Ubuntu configurés sont toujours publiés et résout leur SHA-256 courant sans télécharger les images complètes.
 
 La vue runtime vérifiée est écrite dans :
 
@@ -86,7 +101,7 @@ La vue runtime vérifiée est écrite dans :
 state/kvm/os-catalog.resolved
 ```
 
-Le postcheck KVM exige `status=verified` et une entrée SHA-256 pour chacun des trois médias avant de considérer le catalogue opérationnel.
+Le postcheck KVM exige `status=verified` et une entrée SHA-256 pour chaque média configuré avant de considérer le catalogue opérationnel.
 
 Voir aussi `GUIDE_DEBUTANT_KVM_LIBVIRT.md`.
 
@@ -304,10 +319,10 @@ Répertoires du projet :
 
 - `logs/` : journalisation d'exécution ;
 - `reports/` : rapports de diagnostic/dry-run ;
-- `state/` : état et preuves locales, dont le catalogue OS KVM résolu ;
-- GitHub Actions : tests, ShellCheck, non-régression, pré-test paquets/catalogue Ubuntu 26.04 et laboratoire VM réel.
+- `state/` : état et preuves locales, dont les preuves de dry-run/backup et le catalogue OS KVM résolu ;
+- GitHub Actions : validation du code et des contrats sur le commit concerné.
 
-Lors d'un incident, conserver le rapport et le log correspondant avant toute correction.
+Lors d'un incident, conserver le rapport, le log, le SHA Git et les preuves correspondantes avant toute correction.
 
 ## 16. Rollback / arrêt contrôlé
 
@@ -337,5 +352,7 @@ Toute modification des scripts mutateurs doit conserver :
 - la séparation HOST / KVM / VM_DEVOPS / BACKUP ;
 - l'interdiction du GPU passthrough/VFIO ;
 - les tests GitHub Actions.
+
+Les changements de comportement sont documentés dans les documents de référence concernés. Les détails historiques restent dans `CHANGELOG.md` et ne doivent pas être répétés dans chaque runbook.
 
 Une modification n'est pas considérée prête tant que les tests, ShellCheck et non-régression pertinents ne sont pas verts.
