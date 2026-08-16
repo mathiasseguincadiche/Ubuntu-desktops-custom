@@ -5,12 +5,18 @@ on:
     paths:
       - 'modules/host/**'
       - 'manifests/host/**'
+      - 'modules/virtualization/**'
+      - 'manifests/virtualization/**'
+      - 'scripts/kvm/**'
       - '.github/workflows/host-package-pretest.yml'
   push:
-    branches: [enhancement/host-polish]
+    branches: [main]
     paths:
       - 'modules/host/**'
       - 'manifests/host/**'
+      - 'modules/virtualization/**'
+      - 'manifests/virtualization/**'
+      - 'scripts/kvm/**'
       - '.github/workflows/host-package-pretest.yml'
   workflow_dispatch:
 
@@ -28,7 +34,7 @@ jobs:
           sudo add-apt-repository -y universe
           sudo add-apt-repository -y multiverse
           sudo apt-get update
-      - name: Validate required HOST packages resolve
+      - name: Validate required HOST and KVM packages resolve
         shell: bash
         run: |
           set -u -o pipefail
@@ -38,6 +44,9 @@ jobs:
             steam-installer steam-devices gamemode gamescope mangohud mangoapp
             nvme-cli smartmontools lm-sensors lshw usbutils pciutils ethtool powertop v4l-utils
             pipewire-bin wireplumber
+            qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients
+            virt-install virt-manager virt-viewer spice-client-gtk swtpm swtpm-tools
+            libvirglrenderer1 osinfo-db
           )
           failed=0
           for package in "${packages[@]}"; do
