@@ -154,3 +154,4 @@ fi
 
 retired_note 'Nettoyage terminé : les éléments déjà absents ont été ignorés sans erreur.'
 retired_note 'Données utilisateur, profils Thunderbird et politiques non gérées préservés.'
+printf '%s\n' 'User data, Thunderbird profiles and unrelated browser policies were preserved.'
