@@ -84,9 +84,8 @@ Politique retenue :
 Applications explicitement retirées du desired state :
 
 - **Thunderbird** : remplacé par Proton Mail. L'APPLY retire le paquet/application si présent mais préserve les profils et données utilisateur ;
-- **PDF Arranger** : retiré du poste et de la policy de packaging.
-
-DuckDuckGo est géré comme une **intégration navigateur**, pas comme un paquet Linux : DuckDuckGo ne fournit pas actuellement de navigateur desktop Linux officiel. Le projet installe donc l'extension officielle **DuckDuckGo Search & Tracker Protection** dans Firefox par policy et configure DuckDuckGo comme moteur de recherche par défaut dans Firefox et Brave. Aucun paquet « DuckDuckGo Browser » tiers n'est installé.
+- **PDF Arranger** : retiré du poste et de la policy de packaging ;
+- **DuckDuckGo** : aucune extension, aucun moteur de recherche forcé et aucun navigateur tiers ne sont gérés par le projet. Une ancienne policy DuckDuckGo créée par une version précédente du dépôt est retirée sans toucher aux autres réglages navigateur.
 
 Cas particuliers documentés :
 
@@ -97,7 +96,7 @@ Cas particuliers documentés :
 - Bitwarden n'a pas un format Linux possédant simultanément chaque fonctionnalité. Flatpak est retenu pour mises à jour automatiques, biométrie, intégration navigateur et isolation ; le Direct Importer reste spécifique à AppImage ;
 - Proton Mail Linux reste présenté comme bêta par Proton, mais Proton publie des releases Linux marquées `Stable` dans son manifeste de mise à jour. Le projet ne sélectionne que cette catégorie et vérifie le SHA-512 avant installation.
 
-Une application déjà installée via un autre gestionnaire ou une mauvaise provenance est signalée `DRIFT`. Plusieurs sources donnent `DUPLICATE`. Les installateurs du projet refusent les migrations cross-manager sensibles, sauf Thunderbird et PDF Arranger qui sont désormais explicitement retirés par décision de workstation. Les profils Thunderbird ne sont pas effacés.
+Une application déjà installée via un autre gestionnaire ou une mauvaise provenance est signalée `DRIFT`. Plusieurs sources donnent `DUPLICATE`. Les installateurs du projet refusent les migrations cross-manager sensibles, sauf les éléments explicitement retirés par décision de workstation. Les profils Thunderbird et les policies navigateur non liées à DuckDuckGo ne sont pas effacés.
 
 ## 7. Terminal et shell
 
