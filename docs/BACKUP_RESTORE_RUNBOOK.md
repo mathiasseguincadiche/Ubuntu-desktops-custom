@@ -13,7 +13,15 @@ Ce document décrit la sauvegarde, la restauration et la reprise après sinistre
 
 ## 2. Backup pré-APPLY
 
-Fournir les secrets uniquement au runtime :
+Fournir les secrets uniquement au runtime. La variable canonique du projet est `BACKUP_REPOSITORY_RUNTIME`; `RESTIC_REPOSITORY` est aussi accepté comme alias standard Restic. Ne pas définir les deux avec des valeurs différentes.
+
+```bash
+export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic
+export RESTIC_PASSWORD_FILE=/chemin/securise/restic-password
+./verify-preapply-backup.sh
+```
+
+Alternative équivalente :
 
 ```bash
 export RESTIC_REPOSITORY=/chemin/externe/restic
