@@ -1,8 +1,10 @@
-# Guide d'installation — Ubuntu-desktops-custom V1.0.0
+# Guide d'installation — Ubuntu-desktops-custom
 
 ## Objectif
 
 Converger une installation native Ubuntu Desktop 26.04 LTS vers la workstation définie par ce dépôt, puis construire KVM/libvirt et la VM Ubuntu Server 26.04 DevOps.
+
+Ce guide décrit la procédure supportée par l'état courant de `main`. La version publiée est identifiée par `VERSION` et l'historique des évolutions par `CHANGELOG.md` ; le guide n'est pas une note de version.
 
 ## 1. Préconditions
 
@@ -15,7 +17,7 @@ Converger une installation native Ubuntu Desktop 26.04 LTS vers la workstation d
 
 Lire également `EXECUTION_CONTRACT.md` avant la première exécution réelle.
 
-## 2. Récupérer la version officielle
+## 2. Récupérer la référence à exécuter
 
 ```bash
 git clone https://github.com/mathiasseguincadiche/Ubuntu-desktops-custom.git
@@ -23,11 +25,12 @@ cd Ubuntu-desktops-custom
 git checkout main
 git pull --ff-only
 cat VERSION
+git rev-parse HEAD
 ```
 
-La version attendue pour ce guide est `1.0.0`.
+Conserver le SHA du commit utilisé pour le diagnostic, le dry-run, la preuve de backup et l'APPLY. Ces étapes doivent rester liées à la même révision.
 
-Le point d'entrée recommandé est ensuite :
+Le point d'entrée recommandé est :
 
 ```bash
 ./menu.sh
@@ -55,6 +58,8 @@ Verdict attendu :
 VERDICT: FULL DRY-RUN PASS
 ```
 
+La preuve de dry-run doit correspondre au commit courant.
+
 ## 5. Backup pré-APPLY
 
 Configurer le dépôt Restic externe et ses secrets uniquement au runtime, puis exécuter :
@@ -63,7 +68,7 @@ Configurer le dépôt Restic externe et ses secrets uniquement au runtime, puis 
 ./verify-preapply-backup.sh
 ```
 
-Le backup doit être vérifié, récent et associé au commit courant.
+Le backup doit être vérifié, récent et associé au même commit Git que le dry-run.
 
 ## 6. Exécution réelle
 
@@ -73,31 +78,32 @@ Uniquement lorsque diagnostic, dry-run et backup sont propres :
 ./install.sh --apply
 ```
 
-L'installateur demande des confirmations interactives. Lire chaque phase avant de confirmer.
+L'installateur demande les confirmations interactives prévues par `EXECUTION_CONTRACT.md`.
 
-Ordre :
+Ordre de convergence :
 
 1. HOST
 2. KVM
 3. VM_DEVOPS
 4. BACKUP
 
-Pendant la phase KVM, le catalogue OS est résolu à partir des `SHA256SUMS` officiels Canonical. La preuve courante est écrite dans `state/kvm/os-catalog.resolved` et doit finir avec `status=verified`.
+Pendant la phase KVM, le catalogue OS est résolu à partir des `SHA256SUMS` officiels Canonical. La preuve courante est écrite dans `state/kvm/os-catalog.resolved` et doit contenir `status=verified`.
 
-En cas d'échec, ne pas forcer la phase suivante.
+En cas d'échec, ne pas forcer la phase suivante et conserver les logs/rapports avant toute correction.
 
 ## 7. Validation après installation
 
-Relancer :
+Relancer les contrôles de base :
 
 ```bash
 ./diagnostic.sh
 virsh -c qemu:///system list --all
 virsh -c qemu:///system net-list --all
+virsh -c qemu:///system pool-list --all
 cat state/kvm/os-catalog.resolved
 ```
 
-Puis valider `ubuntu-devops` et sa pile conformément à `RUNBOOK_OPERATIONS.md`.
+Puis valider `ubuntu-devops` et sa pile conformément à `RUNBOOK_OPERATIONS.md` et `VM_DEVOPS_RUNBOOK.md`.
 
 ## 8. Réseau attendu
 
@@ -107,9 +113,22 @@ Puis valider `ubuntu-devops` et sa pile conformément à `RUNBOOK_OPERATIONS.md`
 - passerelle HOST `192.168.50.254` ;
 - DHCP `192.168.50.100-200` ;
 - DNS `9.9.9.9` et `1.1.1.1` ;
-- Internet VM autorisé ;
-- accès au LAN physique bloqué.
+- HOST ↔ VM autorisé ;
+- VM ↔ VM autorisé ;
+- VM → Internet autorisé ;
+- VM → LAN physique bloqué ;
+- LAN → VM bloqué ;
+- Internet → VM bloqué par défaut.
+
+Voir `NETWORK_KVM_NAT_CUSTOM.md` pour le contrat complet.
 
 ## 9. Après installation
 
-Utiliser `menu.sh` comme point d'entrée interactif et `RUNBOOK_OPERATIONS.md` pour l'exploitation quotidienne, KVM, sauvegarde, restauration et incidents.
+Utiliser :
+
+- `menu.sh` comme point d'entrée interactif ;
+- `RUNBOOK_OPERATIONS.md` pour l'exploitation quotidienne ;
+- `HOST_RUNBOOK.md` pour les opérations spécifiques au HOST ;
+- `VM_DEVOPS_RUNBOOK.md` pour la VM DevOps ;
+- `BACKUP_RESTORE_RUNBOOK.md` pour sauvegarde, restauration et disaster recovery ;
+- `TROUBLESHOOTING.md` pour le diagnostic d'incident.
