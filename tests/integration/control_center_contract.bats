@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
+setup() { REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"; }
 
 @test "diagnostic delegates to the global read-only diagnostic" {
   grep -F 'engine_bootstrap' "$REPO_ROOT/diagnostic.sh"
@@ -37,12 +37,22 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F "pretest_record WARN 'RUNTIME INPUTS'" "$REPO_ROOT/lib/pretest_audit.sh"
 }
 
-@test "menu exposes dry-run and delegates real apply to guarded installer" {
+@test "menu exposes dry-run real apply and packaging remediation" {
   grep -F 'Dry-run complet HOST -> KVM -> VM_DEVOPS -> BACKUP' "$REPO_ROOT/menu.sh"
   grep -F 'Installation reelle protegee (--apply)' "$REPO_ROOT/menu.sh"
+  grep -F 'Remediation packaging applicatif pre-APPLY' "$REPO_ROOT/menu.sh"
   grep -F '"$REPO_ROOT/install.sh" --apply' "$REPO_ROOT/menu.sh"
+  grep -F 'bash "$REPO_ROOT/repair-packaging.sh"' "$REPO_ROOT/menu.sh"
   run grep -E '^[[:space:]]*(sudo[[:space:]]+)?(apt|apt-get|virsh|systemctl|nft)[[:space:]]+.*(install|upgrade|define|create|start|enable|delete|destroy|flush)' "$REPO_ROOT/menu.sh"
   [ "$status" -ne 0 ]
+}
+
+@test "packaging remediation is narrow and independently confirmed" {
+  script="$REPO_ROOT/repair-packaging.sh"
+  grep -F "expected_issue='firefox=duplicate[apt,snap]->vendor-apt'" "$script"
+  grep -F "confirmation='MIGRER_FIREFOX_SNAP_VERS_MOZILLA_APT'" "$script"
+  grep -F 'migrate_firefox_snap_to_mozilla_apt.sh' "$script"
+  grep -F 'APP_PACKAGING_DRIFT != 0 || APP_PACKAGING_DUPLICATES != 0' "$script"
 }
 
 @test "installer writes current-commit dry-run proof" {
