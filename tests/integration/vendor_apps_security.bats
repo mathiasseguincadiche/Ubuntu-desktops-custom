@@ -12,6 +12,16 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   [ "$status" -ne 0 ]
 }
 
+@test "Mozilla uses signed Resolute-aware APT repository with pinned key fingerprint" {
+  script="$REPO_ROOT/scripts/vendor/install_mozilla_repo.sh"
+  grep -F 'https://packages.mozilla.org/apt/repo-signing-key.gpg' "$script"
+  grep -F '35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3' "$script"
+  grep -F 'Suites: mozilla' "$script"
+  grep -F 'Suites: thunderbird-deb' "$script"
+  grep -F 'Pin-Priority: 1000' "$script"
+  grep -F 'apt-get -y install firefox thunderbird' "$script"
+}
+
 @test "VS Code uses Microsoft signed repository" {
   grep -F 'https://packages.microsoft.com/keys/microsoft.asc' "$REPO_ROOT/scripts/vendor/install_vscode_repo.sh"
   grep -F 'https://packages.microsoft.com/repos/code' "$REPO_ROOT/scripts/vendor/install_vscode_repo.sh"
@@ -23,16 +33,26 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'brave-browser.sources' "$REPO_ROOT/scripts/vendor/install_brave_repo.sh"
 }
 
-@test "OBS uses the official stable Ubuntu PPA" {
-  grep -F 'ppa:obsproject/obs-studio' "$REPO_ROOT/scripts/vendor/install_obs_repo.sh"
-  grep -F 'apt-get -y install obs-studio' "$REPO_ROOT/scripts/vendor/install_obs_repo.sh"
-}
-
 @test "ONLYOFFICE uses its signed official APT repository" {
   grep -F 'https://download.onlyoffice.com/GPG-KEY-ONLYOFFICE' "$REPO_ROOT/scripts/vendor/install_onlyoffice_repo.sh"
   grep -F 'signed-by=' "$REPO_ROOT/scripts/vendor/install_onlyoffice_repo.sh"
   grep -F 'https://download.onlyoffice.com/repo/debian squeeze main' "$REPO_ROOT/scripts/vendor/install_onlyoffice_repo.sh"
   grep -F 'apt-get -y install onlyoffice-desktopeditors' "$REPO_ROOT/scripts/vendor/install_onlyoffice_repo.sh"
+}
+
+@test "Steam uses Valve signed stable APT repository" {
+  script="$REPO_ROOT/scripts/vendor/install_steam_repo.sh"
+  grep -F 'https://repo.steampowered.com/steam/archive/stable/steam.gpg' "$script"
+  grep -F 'https://repo.steampowered.com/steam/ stable steam' "$script"
+  grep -F 'signed-by=' "$script"
+  grep -F 'apt-get -y install steam-launcher' "$script"
+}
+
+@test "VLC uses VideoLAN Snap and refuses cross-manager duplicates" {
+  script="$REPO_ROOT/scripts/vendor/install_vlc_snap.sh"
+  grep -F 'snap install vlc' "$script"
+  grep -F 'dpkg-query' "$script"
+  grep -F 'org.videolan.VLC' "$script"
 }
 
 @test "drawio installer requires GitHub SHA256 digest" {
@@ -41,8 +61,11 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'sha256sum -c -' "$REPO_ROOT/scripts/vendor/install_drawio_release.sh"
 }
 
-@test "Flatpak vendor list is restricted to Bitwarden" {
-  grep -F 'com.bitwarden.desktop' "$REPO_ROOT/scripts/vendor/install_flatpak_apps.sh"
-  run grep -E 'flatpak install.*(org\.onlyoffice\.desktopeditors|com\.jgraph\.drawio|marktext)' "$REPO_ROOT/scripts/vendor/install_flatpak_apps.sh"
+@test "Flatpak vendor list contains only audited upstream applications" {
+  script="$REPO_ROOT/scripts/vendor/install_flatpak_apps.sh"
+  grep -F 'com.bitwarden.desktop' "$script"
+  grep -F 'com.obsproject.Studio' "$script"
+  grep -F 'com.mattjakeman.ExtensionManager' "$script"
+  run grep -E 'flatpak install.*(org\.onlyoffice\.desktopeditors|com\.jgraph\.drawio|marktext)' "$script"
   [ "$status" -ne 0 ]
 }
