@@ -1,14 +1,15 @@
 # Ubuntu-desktops-custom
 
-Workstation-as-code pour **Ubuntu Desktop 26.04 LTS** : configuration HOST, virtualisation KVM/libvirt CLI-first, VM Ubuntu Server 26.04 DevOps et sauvegarde/restauration.
+Workstation-as-code pour **Ubuntu Desktop 26.04 LTS** : configuration HOST, virtualisation KVM/libvirt CLI-first, VM Ubuntu Server 26.04 DevOps, VM graphiques optionnelles et sauvegarde/restauration.
 
 Version actuelle : **1.0.0**
 
 ## Périmètre
 
-- **HOST** — Ubuntu Desktop 26.04, mises à jour, firmware/microcode AMD, Intel Arc, codecs/multimédia, applications, terminal Bash/Ptyxis, SSH, gaming et validation.
-- **KVM** — QEMU/libvirt, `virsh`, OVMF/UEFI, TPM, pools/volumes, catalogue Ubuntu vérifié, réseau NAT custom, SSH et validation.
+- **HOST** — Ubuntu Desktop 26.04, mises à jour, firmware/microcode AMD, Intel Arc, codecs/multimédia, applications, terminal Bash/Ptyxis, SSH, gaming, observabilité matérielle et validation.
+- **KVM** — QEMU/libvirt, `virsh`, OVMF/UEFI, TPM, pools/volumes, catalogue Ubuntu vérifié, réseau NAT custom, SSH, profils de VM graphiques optionnelles et validation.
 - **VM_DEVOPS** — Ubuntu Server 26.04 LTS, cloud-init, SSH, Git, Terraform, Ansible, Docker Engine/Buildx/Compose, kubectl, Helm, kind, AWS CLI, Azure CLI et DevSecOps.
+- **VM GRAPHIQUES OPTIONNELLES** — Ubuntu Desktop 26.04 avec VirtIO-GPU/3D/VirGL/SPICE GL et Windows 11 avec UEFI Secure Boot, TPM 2.0 et VirtIO. Elles ne sont jamais créées automatiquement pendant l'installation initiale.
 - **BACKUP/RESTORE** — Restic chiffré, inventaire, intégrité, rétention, restauration granulaire et disaster recovery.
 
 ## Démarrage rapide
@@ -40,20 +41,36 @@ Pour l'exploitation quotidienne et les incidents, utiliser `docs/RUNBOOK_OPERATI
 
 Voir `docs/NETWORK_KVM_NAT_CUSTOM.md`.
 
+## Profils KVM optionnels
+
+Les templates canoniques sont définis dans `config/vm-profiles.conf` et consommés par `scripts/kvm/vm-profile`.
+
+```bash
+scripts/kvm/vm-profile list
+scripts/kvm/vm-profile show ubuntu-desktop
+scripts/kvm/vm-profile show windows-11
+```
+
+`command` génère une commande `virt-install` révisable sans mutation. `create` crée explicitement la VM après contrôles et confirmation interactive.
+
+Le profil Ubuntu Desktop utilise VirtIO-GPU + accélération 3D + VirGL/OpenGL + SPICE GL et détecte dynamiquement le render node Intel. **Le GPU passthrough/VFIO est interdit par l'architecture du projet** : l'Intel Arc reste propriété du HOST.
+
+Voir `docs/KVM_DESKTOP_VM_PROFILES.md`.
+
 ## Sécurité d'exécution
 
 Le chemin d'exécution réelle existe, mais reste **fail-closed** : `REAL_MACHINE_APPROVED=false` est la valeur statique par défaut. `./install.sh --apply` exige notamment un TTY interactif, un diagnostic réel valide, un dry-run réussi sur le même commit, un backup Restic externe vérifié et récent, une confirmation globale exacte et des confirmations séparées pour HOST, KVM, VM_DEVOPS et BACKUP.
 
 ## Validation GitHub
 
-La V1.0.0 a passé :
+La base a passé :
 
 - tests unitaires ;
 - tests d'intégration ;
 - contrats dry-run ;
 - ShellCheck ;
 - non-régression ;
-- **pré-test réel Ubuntu Server 26.04 sous KVM**, incluant installation de la pile DevOps/DevSecOps, smoke tests Docker et test de persistance après reboot.
+- pré-test réel Ubuntu Server 26.04 sous KVM, incluant installation de la pile DevOps/DevSecOps, smoke tests Docker et persistance après reboot.
 
 Dernier verdict de référence du laboratoire VM : `REAL UBUNTU 26.04 VM PRE-TEST PASS`.
 
@@ -62,9 +79,10 @@ Dernier verdict de référence du laboratoire VM : `REAL UBUNTU 26.04 VM PRE-TES
 Point d'entrée : **`docs/DOCUMENTATION_INDEX.md`**.
 
 - `docs/INSTALLATION_GUIDE.md` — installation et première exécution de A à Z ;
-- `docs/RUNBOOK_OPERATIONS.md` — **runbook principal** : exploitation, maintenance, KVM, VM DevOps, backup, restore, disaster recovery, incidents et rollback ;
+- `docs/RUNBOOK_OPERATIONS.md` — **runbook principal** : exploitation, maintenance, KVM, VM DevOps, VM graphiques optionnelles, backup, restore, disaster recovery, incidents et rollback ;
 - `docs/HOST_RUNBOOK.md` — exploitation du HOST Ubuntu Desktop, matériel, firmware, Intel Arc, desktop et gaming ;
 - `docs/GUIDE_DEBUTANT_KVM_LIBVIRT.md` — guide CLI KVM/libvirt pour l'administration quotidienne ;
+- `docs/KVM_DESKTOP_VM_PROFILES.md` — templates Ubuntu Desktop/Windows 11, accélération graphique, Secure Boot/TPM et création contrôlée ;
 - `docs/NETWORK_KVM_NAT_CUSTOM.md` — contrat et dépannage réseau KVM ;
 - `docs/VM_DEVOPS_RUNBOOK.md` — exploitation de la VM Ubuntu Server DevOps et de sa pile DevOps/DevSecOps ;
 - `docs/BACKUP_RESTORE_RUNBOOK.md` — sauvegarde Restic, restauration granulaire, QCOW2 et disaster recovery ;
@@ -73,5 +91,4 @@ Point d'entrée : **`docs/DOCUMENTATION_INDEX.md`**.
 - `docs/HOST_PREFLIGHT_CONTRACT.md` — contrat de préflight HOST ;
 - `docs/MODULE_EXECUTION_PLAN.md` — ordre et dépendances des modules ;
 - `docs/ORCHESTRATION_ENGINE.md` — fonctionnement du moteur ;
-- `docs/SECURITY.md` — règles de sécurité ;
-- `docs/V1_EXECUTION_CANDIDATE.md` — historique de la procédure de validation avant V1.0.0.
+- `docs/SECURITY.md` — règles de sécurité.
