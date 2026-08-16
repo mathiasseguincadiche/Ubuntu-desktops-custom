@@ -69,17 +69,24 @@ Vérifier la lecture matérielle avant toute modification de codec ou de backend
 
 ## 6. Desktop, applications et politique de packaging
 
-Le HOST contient les applications desktop définies par le projet, notamment VS Code, navigateur, gestionnaire de mots de passe, bureautique, multimédia, Remote Desktop et outils graphiques. Les outils DevOps lourds restent dans la VM.
+Le HOST contient les applications desktop définies par le projet, notamment VS Code, navigateurs, gestionnaire de mots de passe, Proton Mail, bureautique, multimédia, Remote Desktop et outils graphiques. Les outils DevOps lourds restent dans la VM.
 
 La référence exécutable est `manifests/host/app-packaging-policy.conf`. Le choix est fait application par application selon l'ordre suivant : source officielle upstream, recommandation explicite de l'éditeur, fonctionnalités disponibles, version stable maintenue, intégration Ubuntu/GNOME/Wayland, sécurité/isolation et maintenance automatisable.
 
 Politique retenue :
 
-- **APT éditeur signé** : Firefox et Thunderbird via `packages.mozilla.org`, VS Code via Microsoft, Brave via Brave, ONLYOFFICE via ONLYOFFICE, Steam via le dépôt stable Valve ;
+- **APT éditeur signé** : Firefox via `packages.mozilla.org`, VS Code via Microsoft, Brave via Brave, ONLYOFFICE via ONLYOFFICE, Steam via le dépôt stable Valve ;
+- **DEB éditeur vérifié** : Proton Mail via le DEB Linux officiel Proton avec sélection de la dernière release `Stable` et contrôle SHA-512 ; draw.io via la release officielle avec contrôle SHA-256 ;
 - **Flatpak Flathub upstream** : Bitwarden Desktop, OBS Studio et GNOME Extension Manager ;
 - **Snap éditeur** : VLC, afin que VideoLAN distribue directement les versions majeures stables et correctifs associés ;
-- **APT Ubuntu** : LibreOffice, FileZilla, PDF Arranger, Remmina, Ghostwriter, Ptyxis et Xournal++ lorsque le paquet Resolute est la meilleure option native disponible ;
-- **DEB éditeur vérifié** : draw.io, téléchargé depuis la release officielle avec contrôle SHA-256.
+- **APT Ubuntu** : LibreOffice, FileZilla, Remmina, Ghostwriter, Ptyxis et Xournal++ lorsque le paquet Resolute est la meilleure option native disponible.
+
+Applications explicitement retirées du desired state :
+
+- **Thunderbird** : remplacé par Proton Mail. L'APPLY retire le paquet/application si présent mais préserve les profils et données utilisateur ;
+- **PDF Arranger** : retiré du poste et de la policy de packaging.
+
+DuckDuckGo est géré comme une **intégration navigateur**, pas comme un paquet Linux : DuckDuckGo ne fournit pas actuellement de navigateur desktop Linux officiel. Le projet installe donc l'extension officielle **DuckDuckGo Search & Tracker Protection** dans Firefox par policy et configure DuckDuckGo comme moteur de recherche par défaut dans Firefox et Brave. Aucun paquet « DuckDuckGo Browser » tiers n'est installé.
 
 Cas particuliers documentés :
 
@@ -87,9 +94,10 @@ Cas particuliers documentés :
 - Remmina fournit un PPA, mais il ne publie pas de suite Resolute ; le Snap a en outre des limitations d'accès et d'intégration, donc le paquet Ubuntu natif est retenu ;
 - Ghostwriter documente un PPA upstream, mais ce PPA ne publie pas Resolute tandis qu'Ubuntu 26.04 contient une release upstream récente ;
 - OBS recommande le PPA sur Ubuntu lorsqu'il existe pour la série cible, mais son PPA stable ne publie actuellement pas Resolute ; le Flatpak officiel est donc retenu plutôt qu'un paquet Ubuntu plus ancien ;
-- Bitwarden n'a pas un format Linux possédant simultanément chaque fonctionnalité. Flatpak est retenu pour mises à jour automatiques, biométrie, intégration navigateur et isolation ; le Direct Importer reste spécifique à AppImage.
+- Bitwarden n'a pas un format Linux possédant simultanément chaque fonctionnalité. Flatpak est retenu pour mises à jour automatiques, biométrie, intégration navigateur et isolation ; le Direct Importer reste spécifique à AppImage ;
+- Proton Mail Linux reste présenté comme bêta par Proton, mais Proton publie des releases Linux marquées `Stable` dans son manifeste de mise à jour. Le projet ne sélectionne que cette catégorie et vérifie le SHA-512 avant installation.
 
-Une application déjà installée via un autre gestionnaire ou une mauvaise provenance est signalée `DRIFT`. Plusieurs sources donnent `DUPLICATE`. Les installateurs du projet refusent les migrations cross-manager sensibles au lieu de supprimer automatiquement Firefox, Thunderbird, VLC, OBS, Extension Manager ou Steam. Le nettoyage/migration est décidé explicitement après lecture de l'inventaire.
+Une application déjà installée via un autre gestionnaire ou une mauvaise provenance est signalée `DRIFT`. Plusieurs sources donnent `DUPLICATE`. Les installateurs du projet refusent les migrations cross-manager sensibles, sauf Thunderbird et PDF Arranger qui sont désormais explicitement retirés par décision de workstation. Les profils Thunderbird ne sont pas effacés.
 
 ## 7. Terminal et shell
 
