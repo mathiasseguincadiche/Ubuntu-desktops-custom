@@ -62,19 +62,22 @@ host_probe_dpkg_audit() {
   dpkg --audit 2>&1 || true
 }
 
-host_probe_package_manager_processes() {
-  # A test can inject exact active-process lines. Missing fixture means none.
+host_probe_package_manager_locks() {
+  # A long-lived unattended-upgrade-shutdown --wait-for-signal process is
+  # normal on Ubuntu and is not evidence that APT/dpkg is busy. Block only on
+  # an actually held package-manager lock.
   if [[ -n "${HOST_PROBE_FIXTURE_DIR:-}" ]]; then
-    host_probe_fixture package-manager-processes.txt || true
+    host_probe_fixture package-manager-locks.txt || true
     return 0
   fi
 
-  ps -eo pid=,stat=,comm=,args= 2>/dev/null | awk '
-    $3 == "apt" ||
-    $3 == "apt-get" ||
-    $3 == "dpkg" ||
-    $3 == "unattended-upgr" ||
-    $3 == "packagekitd" {
+  lslocks -n -o PID,COMMAND,PATH 2>/dev/null | awk '
+    $3 == "/var/lib/dpkg/lock-frontend" ||
+    $3 == "/var/lib/dpkg/lock" ||
+    $3 == "/var/cache/apt/archives/lock" ||
+    $3 == "/var/lib/apt/lists/lock" ||
+    $3 == "/run/unattended-upgrades.lock" ||
+    $3 == "/var/run/unattended-upgrades.lock" {
       print
     }
   '
@@ -101,8 +104,8 @@ host_preflight_collect() {
     host_probe_route
     printf '%s\n' '[dpkg-audit]'
     host_probe_dpkg_audit
-    printf '%s\n' '[package-manager-processes]'
-    host_probe_package_manager_processes
+    printf '%s\n' '[package-manager-locks]'
+    host_probe_package_manager_locks
   } > "$report"
   printf '%s\n' "$report"
 }
@@ -141,7 +144,7 @@ host_preflight_assert_kvm() {
 }
 
 host_preflight_assert_package_manager() {
-  local audit active
+  local audit locks
 
   audit="$(host_probe_dpkg_audit)"
   if [[ -n "${audit//[[:space:]]/}" ]]; then
@@ -149,19 +152,19 @@ host_preflight_assert_package_manager() {
     return "$EXIT_PRECHECK_FAILED"
   fi
 
-  active="$(host_probe_package_manager_processes)"
-  if [[ -n "${active//[[:space:]]/}" ]]; then
-    log_error HOST "another package manager process is still active; refusing REAL APPLY until it exits: $(printf '%s' "$active" | tr '\n' ';')"
+  locks="$(host_probe_package_manager_locks)"
+  if [[ -n "${locks//[[:space:]]/}" ]]; then
+    log_error HOST "an APT/dpkg lock is currently held; refusing REAL APPLY until the package transaction exits: $(printf '%s' "$locks" | tr '\n' ';')"
     return "$EXIT_PRECHECK_FAILED"
   fi
 }
 
 host_preflight_precheck() {
   local cmd
-  assert_scope HOST
+  assert_scope HOST || return "$?"
 
   if [[ -z "${HOST_PROBE_FIXTURE_DIR:-}" ]]; then
-    for cmd in lscpu lspci lsblk findmnt ip dpkg ps awk; do
+    for cmd in lscpu lspci lsblk findmnt ip dpkg lslocks awk; do
       command -v "$cmd" >/dev/null 2>&1 || return "$EXIT_PRECHECK_FAILED"
     done
   fi
@@ -169,17 +172,20 @@ host_preflight_precheck() {
   # Always preserve a read-only inventory, including when a compatibility assertion fails afterwards.
   host_preflight_collect >/dev/null || return "$EXIT_PRECHECK_FAILED"
 
-  host_preflight_assert_os
-  host_preflight_assert_cpu
-  host_preflight_assert_gpu
-  host_preflight_assert_storage
-  host_preflight_assert_kvm
-  host_preflight_assert_package_manager
+  # Do not rely on Bash errexit here: orchestrator phases are intentionally
+  # invoked from a conditional context so every assertion must propagate its
+  # own status explicitly.
+  host_preflight_assert_os || return "$?"
+  host_preflight_assert_cpu || return "$?"
+  host_preflight_assert_gpu || return "$?"
+  host_preflight_assert_storage || return "$?"
+  host_preflight_assert_kvm || return "$?"
+  host_preflight_assert_package_manager || return "$?"
   log_info HOST 'host preflight read-only checks passed'
 }
 
 host_preflight_plan() {
-  printf '%s\n' 'READ-ONLY: validate Ubuntu release, Ryzen/SVM, Intel Arc presence, EXT4 system/data, /dev/kvm, Secure Boot, routes and APT/dpkg health.'
+  printf '%s\n' 'READ-ONLY: validate Ubuntu release, Ryzen/SVM, Intel Arc presence, EXT4 system/data, /dev/kvm, Secure Boot, routes and APT/dpkg lock health.'
 }
 
 host_preflight_apply() {

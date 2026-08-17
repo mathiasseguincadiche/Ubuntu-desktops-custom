@@ -45,6 +45,10 @@ backup_fail() {
       problem='L’espace libre minimal requis sur la cible de sauvegarde n’est pas disponible ou mesurable.'
       action='Vérifier le montage et l’espace libre du SSD externe.'
       ;;
+    *'privileged system'*)
+      problem='La capture privilégiée de la configuration système n’a pas pu être validée.'
+      action='Vérifier sudo et le log Restic ; aucun APPLY ne doit être lancé tant que cette capture échoue.'
+      ;;
     *'restore'*)
       problem='Le test de restauration du backup n’a pas réussi.'
       action='Ne pas lancer l’APPLY. Consulter le log Restic puis corriger la sauvegarde.'
@@ -62,6 +66,9 @@ backup_fail() {
     "$RESTIC_UI_LOG"
   exit "$code"
 }
+
+# shellcheck source=lib/backup_privileged_capture.sh
+source "$REPO_ROOT/lib/backup_privileged_capture.sh"
 
 backup_local_source_is_external() {
   local source="$1" device name type tran removable hotplug
@@ -263,16 +270,6 @@ backup_capture_inventory() {
 backup_build_sources() {
   local inventory_dir="$1" relative path
   local -a requested=(
-    "/etc/fstab"
-    "/etc/apt/sources.list"
-    "/etc/apt/sources.list.d"
-    "/etc/apt/keyrings"
-    "/etc/apt/preferences.d"
-    "/etc/systemd/system"
-    "/etc/default"
-    "/etc/modprobe.d"
-    "/etc/sysctl.d"
-    "/etc/udev/rules.d"
     "$HOME/.local/state/ubuntu-desktops-custom/migration-backups"
     "$REPO_ROOT/state/real-apply/full-dry-run.pass"
     "$inventory_dir"
@@ -332,7 +329,7 @@ print(snapshot_id)
 PY
 }
 
-for cmd in restic python3 findmnt lsblk readlink df stat git dpkg-query apt-mark systemctl ip lspci hostname; do
+for cmd in restic python3 findmnt lsblk readlink df stat git dpkg-query apt-mark systemctl ip lspci hostname tar sudo; do
   command -v "$cmd" >/dev/null 2>&1 || backup_fail "required command missing: $cmd"
 done
 
@@ -387,6 +384,10 @@ fi
 
 inventory_dir="$STATE_ROOT/preapply-backup/$RUN_ID"
 backup_capture_inventory "$inventory_dir" "$commit"
+backup_capture_privileged_system_state "$inventory_dir"
+[[ -n "$BACKUP_PRIVILEGED_ARCHIVE" && -r "$BACKUP_PRIVILEGED_ARCHIVE" ]] \
+  || backup_fail 'privileged system backup archive is not readable after capture' "$EXIT_POSTCHECK_FAILED"
+ui_check OK 'Config système' 'Archive root-readable capturée avec ACL/xattrs/propriétaires conservés'
 backup_build_sources "$inventory_dir"
 ui_check OK 'Inventaire' "${#BACKUP_SOURCES[@]} sources préparées"
 
@@ -445,6 +446,7 @@ ui_check OK 'Preuve APPLY' 'BACKUP_VERIFIED lié au commit courant'
   printf 'repository=%s\n' "$repository"
   printf 'password_file=%s\n' "$password_file"
   printf 'snapshot_id=%s\n' "$snapshot_id"
+  printf 'privileged_system_archive=%s\n' "$BACKUP_PRIVILEGED_ARCHIVE"
   printf 'restore_test=PASS\n'
   printf 'verdict=PREAPPLY_BACKUP_READY\n'
 } > "$STATE_ROOT/preapply-backup/latest.pass"
