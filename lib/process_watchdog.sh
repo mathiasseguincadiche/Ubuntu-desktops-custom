@@ -21,7 +21,7 @@ process_watchdog_enabled() {
 
 process_watchdog_positive_integer() {
   local value="${1:-}" fallback="${2:?}"
-  if [[ "$value" =~ ^[0-9]+$ ]] && (( value > 0 )); then
+  if [[ "$value" =~ ^[0-9]+$ ]] && (( 10#$value > 0 )); then
     printf '%s\n' "$value"
   else
     printf '%s\n' "$fallback"
@@ -31,20 +31,16 @@ process_watchdog_positive_integer() {
 process_watchdog_descendants_snapshot() {
   local root_pid="${1:?}" excluded_pid="${2:?}"
 
-  ps -eo pid=,ppid=,stat=,etimes=,uid=,args= 2>/dev/null | awk \
+  ps -eo pid=,ppid=,stat=,args= 2>/dev/null | awk \
     -v root="$root_pid" -v excluded_root="$excluded_pid" '
       {
         pid=$1
         parent=$2
         stat=$3
-        etimes=$4
-        uid=$5
-        $1=$2=$3=$4=$5=""
+        $1=$2=$3=""
         sub(/^[[:space:]]+/, "", $0)
         parent_of[pid]=parent
         stat_of[pid]=stat
-        etimes_of[pid]=etimes
-        uid_of[pid]=uid
         args_of[pid]=$0
         order[++count]=pid
       }
@@ -72,8 +68,7 @@ process_watchdog_descendants_snapshot() {
         for (i=1; i<=count; i++) {
           pid=order[i]
           if (pid != root && descendant[pid] && !excluded[pid]) {
-            printf "%s\t%s\t%s\t%s\t%s\t%s\n", \
-              pid, parent_of[pid], stat_of[pid], etimes_of[pid], uid_of[pid], args_of[pid]
+            printf "%s\t%s\t%s\n", pid, stat_of[pid], args_of[pid]
           }
         }
       }
@@ -168,7 +163,7 @@ process_watchdog_continue_pid() {
 
 process_watchdog_monitor() {
   local root_pid="${1:?}" scope="${2:?}" action="${3:-Configuration}" self_pid
-  local poll_seconds stop_grace_seconds max_auto_continues now pid ppid stat etimes uid command stopped_for attempts_count
+  local poll_seconds stop_grace_seconds max_auto_continues now pid stat command stopped_for attempts_count
   local auto_continue="${MUTATION_WATCHDOG_AUTO_CONTINUE:-true}"
   declare -A stopped_since=()
   declare -A continue_attempts=()
@@ -187,7 +182,7 @@ process_watchdog_monitor() {
     now="$(date +%s)"
     currently_stopped=()
 
-    while IFS=$'\t' read -r pid ppid stat etimes uid command; do
+    while IFS=$'\t' read -r pid stat command; do
       [[ "$pid" =~ ^[0-9]+$ ]] || continue
       [[ "$stat" == T* ]] || continue
 
