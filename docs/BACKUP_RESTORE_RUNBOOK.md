@@ -39,10 +39,21 @@ Le menu appelle `./prepare-preapply-backup.sh`. Ce workflow :
 6. crée uniquement le sous-répertoire `Backup-Ubuntu/restic` sur la cible retenue ;
 7. ne formate, ne repartitionne et ne supprime aucun fichier étranger au dépôt Restic ;
 8. initialise le dépôt chiffré lorsqu'il n'existe pas encore, sans écraser un répertoire non vide qui ne serait pas un dépôt Restic ;
-9. capture les fichiers Git suivis, les configurations HOST reproductibles sélectionnées, la preuve de dry-run, les backups de migration disponibles et un inventaire machine ;
-10. crée un snapshot Restic étiqueté avec le commit et le `RUN_ID` ;
-11. exécute un test de restauration granulaire sur un fichier canari ;
-12. appelle `verify-preapply-backup.sh`, qui exécute ensuite `restic check --read-data` et écrit la preuve `BACKUP_VERIFIED`.
+9. capture les fichiers système privilégiés sélectionnés (`/etc/fstab`, APT, systemd, `/etc/default`, modprobe, sysctl, udev) dans `system-config.tar` avec ACL, xattrs et propriétaires numériques conservés ; Restic reste exécuté sans privilèges et ne parcourt jamais directement ces fichiers root-only ;
+10. capture les fichiers Git suivis, la preuve de dry-run, les backups de migration disponibles et un inventaire machine ;
+11. crée un snapshot Restic étiqueté avec le commit et le `RUN_ID` ;
+12. exécute un test de restauration granulaire sur un fichier canari ;
+13. appelle `verify-preapply-backup.sh`, qui exécute ensuite `restic check --read-data` et écrit la preuve `BACKUP_VERIFIED`.
+
+La capture système privilégiée est volontairement séparée de Restic : `sudo` sert uniquement à lire les fichiers système et à produire l'archive locale de staging. L'archive est ensuite rendue à l'utilisateur courant en mode `0600`. Le dépôt Restic externe ne devient donc pas root-owned.
+
+Le fichier :
+
+```text
+state/preapply-backup/<RUN_ID>/system-config.paths.txt
+```
+
+liste le contenu capturé et permet d'auditer la présence des chemins système attendus avant le snapshot.
 
 Lors de la première utilisation, le workflow demande une passphrase Restic d'au moins 16 caractères et la stocke par défaut dans :
 
@@ -91,13 +102,15 @@ restic snapshots
 restic check --read-data
 ```
 
-Ne pas considérer la seule présence d'un snapshot comme une preuve d'intégrité suffisante.
+Ne pas considérer la seule présence d'un snapshot comme une preuve d'intégrité suffisante. Un snapshot créé par Restic avec un code retour non nul, par exemple parce qu'un fichier source était illisible, n'est jamais accepté comme `BACKUP_VERIFIED` même si Restic a écrit un identifiant de snapshot.
 
 ## 4. Sauvegarde HOST
 
 Sauvegarder prioritairement les éléments nécessaires à la reconstruction : configuration du projet, inventaires, données utilisateur explicitement prévues et configuration reproductible. Une image brute complète du système n'est pas le modèle canonique de reconstruction.
 
 Le snapshot pré-APPLY automatique ne réalise donc pas une image brute du système. Il protège les éléments reproductibles et les preuves nécessaires avant la convergence réelle.
+
+Les fichiers système nécessitant root sont encapsulés dans `system-config.tar`. Cela permet de préserver leur contenu et leurs métadonnées sans exécuter le dépôt Restic lui-même en root.
 
 ## 5. Sauvegarde KVM/libvirt
 
@@ -148,6 +161,17 @@ La rétention/prune est destructive : vérifier un snapshot récent avant toute 
 6. Promouvoir explicitement seulement après validation.
 
 Ne jamais écraser directement les données live par défaut.
+
+Pour restaurer un fichier système capturé dans `system-config.tar`, restaurer d'abord l'archive depuis Restic dans un staging, lister son contenu, puis extraire uniquement le chemin voulu dans un second staging :
+
+```bash
+tar -tf system-config.tar | less
+mkdir -p /tmp/udc-system-restore
+sudo tar --acls --xattrs --numeric-owner -xpf system-config.tar \
+  -C /tmp/udc-system-restore etc/default/cacerts
+```
+
+Comparer ensuite le fichier extrait avec la machine active. **Ne jamais extraire directement `system-config.tar` sur `/` sans revue et approbation explicites.**
 
 ## 9. Restauration VM
 
