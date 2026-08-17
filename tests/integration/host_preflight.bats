@@ -2,6 +2,7 @@
 
 setup() {
   REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
+  source "$REPO_ROOT/lib/constants.sh"
   export HOST_PROBE_FIXTURE_DIR="$REPO_ROOT/tests/fixtures/host"
   export REPORT_ROOT="$BATS_TEST_TMPDIR/reports"
   export RUN_ID='host-fixture'
