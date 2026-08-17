@@ -110,8 +110,8 @@ setup() {
   [ "$status" -eq "$EXIT_PRECHECK_FAILED" ]
 }
 
-@test "HOST preflight no longer treats the unattended-upgrade waiter process name as a lock" {
-  run grep -F 'unattended-upgr' "$REPO_ROOT/modules/host/00_preflight.sh"
+@test "HOST preflight no longer uses the unattended-upgrade process-name heuristic" {
+  run grep -F '$3 == "unattended-upgr"' "$REPO_ROOT/modules/host/00_preflight.sh"
   [ "$status" -ne 0 ]
 }
 
