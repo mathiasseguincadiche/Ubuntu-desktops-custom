@@ -9,7 +9,7 @@ _command_string() {
 }
 
 run_command() {
-  local scope="$1" effect="$2" rc live_action=false live_label=''
+  local scope="$1" effect="$2" rc live_action=false live_label='' watchdog_pid=''
   shift 2
   [[ "${1:-}" == '--' ]] && shift
 
@@ -44,6 +44,13 @@ run_command() {
         live_action=true
       fi
     fi
+
+    # Keep the actual command in the foreground so sudo/TTY semantics stay
+    # unchanged. A sidecar watchdog observes only its descendant process tree.
+    if declare -F process_watchdog_start >/dev/null 2>&1; then
+      process_watchdog_start "${BASHPID:-$$}" "$scope" "${live_label:-$rendered}"
+      watchdog_pid="${PROCESS_WATCHDOG_PID:-}"
+    fi
   fi
 
   log_info "$scope" "execute: $rendered"
@@ -51,6 +58,10 @@ run_command() {
     rc=0
   else
     rc=$?
+  fi
+
+  if [[ -n "$watchdog_pid" ]] && declare -F process_watchdog_stop >/dev/null 2>&1; then
+    process_watchdog_stop "$watchdog_pid"
   fi
 
   if [[ "$live_action" == true ]]; then
