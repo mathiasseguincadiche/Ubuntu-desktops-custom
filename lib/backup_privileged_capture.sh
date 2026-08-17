@@ -5,6 +5,8 @@
 # never becomes root-owned. The tar archive preserves numeric ownership, ACLs
 # and xattrs for later staged restoration.
 
+BACKUP_PRIVILEGED_ARCHIVE=''
+
 backup_privileged_system_paths() {
   cat <<'EOF'
 etc/fstab
@@ -73,5 +75,5 @@ backup_capture_privileged_system_state() {
     fi
   done
 
-  printf '%s\n' "$archive"
+  BACKUP_PRIVILEGED_ARCHIVE="$archive"
 }
