@@ -6,7 +6,7 @@
 
 ui_module_detail() {
   case "$1" in
-    host.preflight) printf '%s' 'Ubuntu 26.04 | Ryzen/AMD-V | KVM | stockage | matériel attendu' ;;
+    host.preflight) printf '%s' 'Ubuntu 26.04 | Ryzen/AMD-V | KVM | stockage | APT/dpkg sain | matériel attendu' ;;
     host.os_updates) printf '%s' 'APT metadata + dist-upgrade | aucun changement de release implicite' ;;
     host.firmware_microcode) printf '%s' 'amd64-microcode | linux-firmware | fwupd | aucun flash automatique' ;;
     host.graphics) printf '%s' 'Arc B580 PCI 8086:e20b | driver xe | Vulkan Intel Mesa | probe VA-API' ;;

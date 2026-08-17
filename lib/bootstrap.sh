@@ -21,6 +21,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/operator_details.sh"
   # shellcheck source=lib/live_progress.sh
   source "$REPO_ROOT/lib/live_progress.sh"
+  # shellcheck source=lib/process_watchdog_ui.sh
+  source "$REPO_ROOT/lib/process_watchdog_ui.sh"
   # shellcheck source=lib/logging.sh
   source "$REPO_ROOT/lib/logging.sh"
   # shellcheck source=lib/state.sh
@@ -31,6 +33,8 @@ engine_bootstrap() {
   source "$REPO_ROOT/lib/locks.sh"
   # shellcheck source=lib/retry.sh
   source "$REPO_ROOT/lib/retry.sh"
+  # shellcheck source=lib/process_watchdog.sh
+  source "$REPO_ROOT/lib/process_watchdog.sh"
   # shellcheck source=lib/runner.sh
   source "$REPO_ROOT/lib/runner.sh"
   # shellcheck source=lib/vm_remote.sh
