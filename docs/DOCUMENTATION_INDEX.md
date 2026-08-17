@@ -31,6 +31,7 @@ Les procédures, runbooks et documents d'architecture doivent rester valables co
 - `KVM_DESKTOP_VM_PROFILES.md` — référence des VM graphiques optionnelles.
 - `VM_DEVOPS_RUNBOOK.md` — opérations spécifiques à la VM DevOps.
 - `BACKUP_RESTORE_RUNBOOK.md` — procédures Restic, QCOW2 et reconstruction.
+- `MUTATION_WATCHDOG.md` — détection et récupération bornée des sous-processus suspendus pendant un REAL APPLY.
 - `TROUBLESHOOTING.md` — diagnostic transversal HOST/KVM/réseau/VM/DevOps/backup.
 
 ## Architecture et fonctionnement interne
@@ -38,6 +39,7 @@ Les procédures, runbooks et documents d'architecture doivent rester valables co
 - `ARCHITECTURE_TECHNIQUE.md` — architecture générale et séparation des responsabilités.
 - `EXECUTION_CONTRACT.md` — contrat de sécurité de l'exécution réelle.
 - `ORCHESTRATION_ENGINE.md` — moteur, phases, états, reprise et exécution.
+- `MUTATION_WATCHDOG.md` — sidecar de surveillance des mutations, états `T/T+`, `SIGCONT` borné et traces runtime.
 - `NETWORK_KVM_NAT_CUSTOM.md` — contrat `devops-nat`, isolation LAN et diagnostic réseau.
 - `KVM_DESKTOP_VM_PROFILES.md` — contrats de ressources, UEFI/TPM/VirtIO et accélération graphique des VM Desktop.
 - `SECURITY.md` — règles de sécurité et principes fail-closed.
@@ -83,6 +85,8 @@ Incident :
 RUNBOOK_OPERATIONS.md
    ↓
 TROUBLESHOOTING.md
+   ↓
+MUTATION_WATCHDOG.md si un sous-processus reste en T/T+
    ↓
 document spécialisé concerné
 ```
