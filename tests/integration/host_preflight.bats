@@ -40,8 +40,40 @@ setup() {
     grep -F '[secure-boot]' \"\$report\"
     grep -F '[kvm]' \"\$report\"
     grep -F '[routes]' \"\$report\"
+    grep -F '[dpkg-audit]' \"\$report\"
+    grep -F '[package-manager-processes]' \"\$report\"
   "
   [ "$status" -eq 0 ]
+}
+
+@test "HOST preflight blocks an incomplete dpkg database" {
+  run bash -c "
+    source '$REPO_ROOT/lib/constants.sh'
+    source '$REPO_ROOT/lib/common.sh'
+    source '$REPO_ROOT/lib/logging.sh'
+    source '$REPO_ROOT/lib/scope.sh'
+    export ACTIVE_SCOPE=HOST
+    source '$REPO_ROOT/modules/host/00_preflight.sh'
+    host_probe_dpkg_audit() { printf '%s\\n' 'package is only half configured'; }
+    host_probe_package_manager_processes() { :; }
+    host_preflight_assert_package_manager
+  "
+  [ "$status" -eq "$EXIT_PRECHECK_FAILED" ]
+}
+
+@test "HOST preflight blocks an already active package manager" {
+  run bash -c "
+    source '$REPO_ROOT/lib/constants.sh'
+    source '$REPO_ROOT/lib/common.sh'
+    source '$REPO_ROOT/lib/logging.sh'
+    source '$REPO_ROOT/lib/scope.sh'
+    export ACTIVE_SCOPE=HOST
+    source '$REPO_ROOT/modules/host/00_preflight.sh'
+    host_probe_dpkg_audit() { :; }
+    host_probe_package_manager_processes() { printf '%s\\n' '156160 T+ apt-get apt-get -y install package.deb'; }
+    host_preflight_assert_package_manager
+  "
+  [ "$status" -eq "$EXIT_PRECHECK_FAILED" ]
 }
 
 @test "HOST preflight is explicitly non-mutating" {
