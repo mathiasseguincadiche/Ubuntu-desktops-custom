@@ -44,6 +44,26 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   [ "$status" -ne 0 ]
 }
 
+@test "pre-apply backup captures root-only system configuration before unprivileged Restic" {
+  script="$REPO_ROOT/prepare-preapply-backup.sh"
+  helper="$REPO_ROOT/lib/backup_privileged_capture.sh"
+
+  grep -F 'source "$REPO_ROOT/lib/backup_privileged_capture.sh"' "$script"
+  grep -F 'backup_capture_privileged_system_state "$inventory_dir"' "$script"
+  grep -F 'BACKUP_PRIVILEGED_ARCHIVE' "$script"
+  grep -F 'sudo tar --acls --xattrs --numeric-owner -C / -cpf "$tmp"' "$helper"
+  grep -F 'sudo chown "$uid:$gid" -- "$tmp"' "$helper"
+  grep -F 'tar -tf "$archive" > "$manifest"' "$helper"
+  grep -F 'etc/default' "$helper"
+
+  # System paths must not be handed directly to Restic because some files are
+  # deliberately root-readable only (for example /etc/default/cacerts).
+  run grep -F '"/etc/default"' "$script"
+  [ "$status" -ne 0 ]
+  run grep -E 'sudo[[:space:]]+restic' "$script" "$helper"
+  [ "$status" -ne 0 ]
+}
+
 @test "pre-apply backup captures the snapshot ID from the backup JSON summary" {
   script="$REPO_ROOT/prepare-preapply-backup.sh"
   grep -F 'backup_snapshot_id_from_json()' "$script"
@@ -76,6 +96,7 @@ setup() { REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"; }
   grep -F 'export BACKUP_REPOSITORY_RUNTIME=/chemin/externe/restic' "$REPO_ROOT/docs/INSTALLATION_GUIDE.md"
   grep -Fi 'un second SSD interne ne satisfait pas' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
   grep -F './prepare-preapply-backup.sh' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
+  grep -F 'system-config.tar' "$REPO_ROOT/docs/BACKUP_RESTORE_RUNBOOK.md"
   grep -F '3) Préparer et vérifier le backup pré-APPLY' "$REPO_ROOT/docs/INSTALLATION_GUIDE.md"
 }
 
